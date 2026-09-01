@@ -225,6 +225,7 @@ export default function FinanceScreen() {
       </View>
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -646,8 +647,8 @@ const styles = StyleSheet.create({
     color: '#1A202C',
   },
   modalBody: {
+    flex: 1,
     padding: 20,
-    maxHeight: 450,
   },
   inputGroup: {
     marginBottom: 20,

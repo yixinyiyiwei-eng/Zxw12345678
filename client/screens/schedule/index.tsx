@@ -152,29 +152,31 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
       {/* Minute Selector */}
       <View style={clockStyles.minuteContainer}>
         <Text style={clockStyles.minuteLabel}>分钟</Text>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={clockStyles.minuteScroll}
-        >
-          {minuteMarkers.map((minute) => (
-            <TouchableOpacity
-              key={`minute-${minute}`}
-              style={[
-                clockStyles.minuteItem,
-                minutes === minute && clockStyles.minuteItemSelected,
-              ]}
-              onPress={() => handleMinuteSelect(minute)}
-            >
-              <Text style={[
-                clockStyles.minuteText,
-                minutes === minute && clockStyles.minuteTextSelected,
-              ]}>
-                {minute.toString().padStart(2, '0')}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <View>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={clockStyles.minuteScroll}
+          >
+            {minuteMarkers.map((minute) => (
+              <TouchableOpacity
+                key={`minute-${minute}`}
+                style={[
+                  clockStyles.minuteItem,
+                  minutes === minute && clockStyles.minuteItemSelected,
+                ]}
+                onPress={() => handleMinuteSelect(minute)}
+              >
+                <Text style={[
+                  clockStyles.minuteText,
+                  minutes === minute && clockStyles.minuteTextSelected,
+                ]}>
+                  {minute.toString().padStart(2, '0')}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </View>
     </View>
   );
@@ -368,6 +370,7 @@ export default function ScheduleScreen() {
       </View>
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
@@ -812,8 +815,8 @@ const styles = StyleSheet.create({
     color: '#1A202C',
   },
   modalBody: {
+    flex: 1,
     padding: 20,
-    maxHeight: 500,
   },
   inputGroup: {
     marginBottom: 20,

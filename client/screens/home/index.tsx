@@ -78,6 +78,7 @@ export default function HomeScreen() {
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
