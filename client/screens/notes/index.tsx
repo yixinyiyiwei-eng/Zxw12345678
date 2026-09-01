@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -32,12 +32,12 @@ interface NoteItem {
   thought?: string;
 }
 
-const NOTE_CONFIG: Record<NoteType, { title: string; icon: string; color: string; bgColor: string }> = {
-  money: { title: '赚钱心得', icon: 'lightbulb', color: '#6C63FF', bgColor: 'rgba(108,99,255,0.12)' },
-  review: { title: '工作复盘', icon: 'clipboard-check', color: '#6C63FF', bgColor: 'rgba(108,99,255,0.12)' },
-  english: { title: '英语学习', icon: 'language', color: '#FF6584', bgColor: 'rgba(255,101,132,0.12)' },
-  reading: { title: '阅读积累', icon: 'book', color: '#00B894', bgColor: 'rgba(0,184,148,0.12)' },
-  ai: { title: 'AI/副业学习', icon: 'robot', color: '#F0932B', bgColor: 'rgba(240,147,43,0.12)' },
+const NOTE_CONFIG: Record<NoteType, { title: string; shortTitle: string; icon: keyof typeof FontAwesome6.glyphMap }> = {
+  money: { title: '赚钱心得', shortTitle: '赚钱', icon: 'lightbulb' },
+  review: { title: '工作复盘', shortTitle: '复盘', icon: 'clipboard-check' },
+  english: { title: '英语学习', shortTitle: '英语', icon: 'language' },
+  reading: { title: '阅读积累', shortTitle: '阅读', icon: 'book' },
+  ai: { title: 'AI/副业', shortTitle: 'AI', icon: 'robot' },
 };
 
 const API_ENDPOINTS: Record<NoteType, string> = {
@@ -51,7 +51,6 @@ const API_ENDPOINTS: Record<NoteType, string> = {
 export default function NotesScreen() {
   const insets = useSafeAreaInsets();
   const params = useSafeSearchParams<{ type?: string }>();
-  // Set active tab from params - use useSafeSearchParams which handles this reactively
   const initialType = params.type;
   const [activeTab, setActiveTab] = useState<NoteType>(() => {
     if (initialType && ['money', 'review', 'english', 'reading', 'ai'].includes(initialType as string)) {
@@ -220,15 +219,15 @@ export default function NotesScreen() {
   };
 
   return (
-    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F0F0F3">
+    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>笔记</Text>
         <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-          <FontAwesome6 name="plus" size={16} color="#FFF" />
+          <FontAwesome6 name="plus" size={14} color="#FFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Tab Selector */}
+      {/* Compact Tab Selector - Horizontal Scroll */}
       <View style={styles.tabWrapper}>
         <ScrollView
           horizontal
@@ -241,21 +240,27 @@ export default function NotesScreen() {
             return (
               <TouchableOpacity
                 key={tab}
-                style={[styles.tab, isActive && { backgroundColor: tabConfig.bgColor }]}
+                style={[styles.tab, isActive && styles.tabActive]}
                 onPress={() => setActiveTab(tab)}
               >
                 <FontAwesome6
-                  name={tabConfig.icon as any}
-                  size={14}
-                  color={isActive ? tabConfig.color : '#636E72'}
+                  name={tabConfig.icon}
+                  size={12}
+                  color={isActive ? '#2D7D46' : '#718096'}
                 />
-                <Text style={[styles.tabText, isActive && { color: tabConfig.color }]}>
-                  {tabConfig.title}
+                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
+                  {tabConfig.shortTitle}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
+      </View>
+
+      {/* Current Tab Title */}
+      <View style={styles.sectionHeader}>
+        <FontAwesome6 name={config.icon} size={16} color="#2D7D46" />
+        <Text style={styles.sectionTitle}>{config.title}</Text>
       </View>
 
       <ScrollView
@@ -264,7 +269,7 @@ export default function NotesScreen() {
       >
         {notes.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <FontAwesome6 name={config.icon as any} size={48} color="#B2BEC3" />
+            <FontAwesome6 name={config.icon} size={48} color="#C6E5C6" />
             <Text style={styles.emptyText}>暂无{config.title}记录</Text>
             <Text style={styles.emptySubText}>点击右上角 + 添加第一条记录</Text>
           </View>
@@ -276,23 +281,22 @@ export default function NotesScreen() {
               onPress={() => openEditModal(item)}
               onLongPress={() => handleDelete(item.id)}
             >
-              <View style={styles.shadowDark}>
-                <View style={styles.shadowLight}>
-                  <View style={styles.noteHeader}>
-                    <View style={[styles.dateIcon, { backgroundColor: config.bgColor }]}>
-                      <Text style={[styles.dateText, { color: config.color }]}>
-                        {new Date(item.date).getDate()}
-                      </Text>
-                    </View>
-                    <View style={styles.noteInfo}>
-                      <Text style={styles.noteDate}>
-                        {new Date(item.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
-                      </Text>
-                    </View>
-                  </View>
-                  {renderNoteContent(item)}
+              <View style={styles.noteHeader}>
+                <View style={styles.dateBadge}>
+                  <Text style={styles.dateBadgeText}>
+                    {new Date(item.date).getDate()}
+                  </Text>
+                  <Text style={styles.dateBadgeMonth}>
+                    {new Date(item.date).toLocaleDateString('zh-CN', { month: 'short' })}
+                  </Text>
+                </View>
+                <View style={styles.noteInfo}>
+                  <Text style={styles.noteDate}>
+                    {new Date(item.date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })}
+                  </Text>
                 </View>
               </View>
+              {renderNoteContent(item)}
             </TouchableOpacity>
           ))
         )}
@@ -311,7 +315,7 @@ export default function NotesScreen() {
                 {editingItem ? '编辑' : '新增'}{config.title}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color="#636E72" />
+                <FontAwesome6 name="xmark" size={20} color="#4A5568" />
               </TouchableOpacity>
             </View>
 
@@ -325,7 +329,7 @@ export default function NotesScreen() {
                       value={observation}
                       onChangeText={setObservation}
                       placeholder="描述你看到的与赚钱相关的事情..."
-                      placeholderTextColor="#B2BEC3"
+                      placeholderTextColor="#A0AEC0"
                       multiline
                     />
                   </View>
@@ -336,7 +340,7 @@ export default function NotesScreen() {
                       value={thought}
                       onChangeText={setThought}
                       placeholder="写下你的思考和想法..."
-                      placeholderTextColor="#B2BEC3"
+                      placeholderTextColor="#A0AEC0"
                       multiline
                     />
                   </View>
@@ -350,7 +354,7 @@ export default function NotesScreen() {
                       value={title}
                       onChangeText={setTitle}
                       placeholder="文章或书名..."
-                      placeholderTextColor="#B2BEC3"
+                      placeholderTextColor="#A0AEC0"
                     />
                   </View>
                   <View style={styles.inputGroup}>
@@ -360,7 +364,7 @@ export default function NotesScreen() {
                       value={source}
                       onChangeText={setSource}
                       placeholder="作者、网站等..."
-                      placeholderTextColor="#B2BEC3"
+                      placeholderTextColor="#A0AEC0"
                     />
                   </View>
                   <View style={styles.inputGroup}>
@@ -370,7 +374,7 @@ export default function NotesScreen() {
                       value={content}
                       onChangeText={setContent}
                       placeholder="摘录的内容..."
-                      placeholderTextColor="#B2BEC3"
+                      placeholderTextColor="#A0AEC0"
                       multiline
                     />
                   </View>
@@ -387,7 +391,7 @@ export default function NotesScreen() {
                       activeTab === 'english' ? '今天学到的英语知识...' :
                       '今天学到的AI/副业知识...'
                     }
-                    placeholderTextColor="#B2BEC3"
+                    placeholderTextColor="#A0AEC0"
                     multiline
                   />
                 </View>
@@ -416,24 +420,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: '#F0F0F3',
+    backgroundColor: '#F5FAF5',
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#2D3436',
+    fontWeight: '700',
+    color: '#1A202C',
   },
   addButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabWrapper: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
   },
   tabContainer: {
     gap: 8,
@@ -441,16 +445,37 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#E8E8EB',
-    gap: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 5,
+  },
+  tabActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#2D7D46',
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#636E72',
+    color: '#718096',
+  },
+  tabTextActive: {
+    color: '#2D7D46',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2D7D46',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -460,97 +485,97 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#636E72',
+    fontSize: 15,
+    color: '#4A5568',
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 13,
-    color: '#B2BEC3',
+    color: '#A0AEC0',
     marginTop: 8,
   },
   noteCard: {
-    marginBottom: 12,
-  },
-  shadowDark: {
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 6,
-    borderRadius: 20,
-  },
-  shadowLight: {
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: -4, height: -4 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
-    backgroundColor: '#F0F0F3',
-    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     padding: 16,
-    elevation: 4,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   noteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
   },
-  dateIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+  dateBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: '#F0FFF4',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  dateText: {
+  dateBadgeText: {
     fontSize: 16,
     fontWeight: '700',
+    color: '#2D7D46',
+  },
+  dateBadgeMonth: {
+    fontSize: 9,
+    color: '#718096',
+    marginTop: -2,
   },
   noteInfo: {
     marginLeft: 12,
   },
   noteDate: {
     fontSize: 13,
-    color: '#636E72',
+    color: '#718096',
   },
   noteContent: {
     fontSize: 14,
-    color: '#2D3436',
+    color: '#1A202C',
     lineHeight: 22,
   },
   moneySection: {
     marginBottom: 12,
   },
   moneyLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#6C63FF',
+    color: '#2D7D46',
     marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   moneyContent: {
     fontSize: 14,
-    color: '#2D3436',
+    color: '#1A202C',
     lineHeight: 20,
   },
   readingTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#1A202C',
     marginBottom: 4,
   },
   readingSource: {
     fontSize: 12,
-    color: '#636E72',
+    color: '#718096',
     marginBottom: 8,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#F0F0F3',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     maxHeight: '80%',
   },
   modalHeader: {
@@ -559,32 +584,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8EB',
+    borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2D3436',
+    color: '#1A202C',
   },
   modalBody: {
     padding: 20,
-    maxHeight: 400,
+    maxHeight: 450,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#4A5568',
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     padding: 16,
     fontSize: 15,
-    color: '#2D3436',
+    color: '#1A202C',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   multilineInput: {
     minHeight: 120,
@@ -595,30 +622,30 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8EB',
+    borderTopColor: '#E2E8F0',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#636E72',
+    color: '#4A5568',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     alignItems: 'center',
   },
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFF',
+    color: '#FFFFFF',
   },
 });

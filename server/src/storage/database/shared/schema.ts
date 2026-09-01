@@ -1,7 +1,12 @@
-import { pgTable, serial, date, text, timestamp, unique, check, integer, varchar, numeric, boolean, index, time } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, index, date, text, unique, check, integer, varchar, numeric, boolean, foreignKey, time } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
+
+export const healthCheck = pgTable("health_check", {
+	id: serial().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
 
 export const moneyInsights = pgTable("money_insights", {
 	id: serial().primaryKey().notNull(),
@@ -11,13 +16,8 @@ export const moneyInsights = pgTable("money_insights", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
-	index("money_insights_date_idx").on(table.date),
+	index("money_insights_date_idx").using("btree", table.date.asc().nullsLast().op("date_ops")),
 ]);
-
-export const healthCheck = pgTable("health_check", {
-	id: serial().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-});
 
 export const dailyReviews = pgTable("daily_reviews", {
 	id: serial().primaryKey().notNull(),
@@ -40,17 +40,6 @@ export const goals = pgTable("goals", {
 	check("goals_progress_check", sql`(progress >= 0) AND (progress <= 100)`),
 ]);
 
-export const subGoals = pgTable("sub_goals", {
-	id: serial().primaryKey().notNull(),
-	goalId: integer("goal_id").notNull().references(() => goals.id, { onDelete: "cascade" }),
-	title: text().notNull(),
-	isCompleted: boolean("is_completed").default(false),
-	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	index("sub_goals_goal_id_idx").on(table.goalId),
-]);
-
 export const transactions = pgTable("transactions", {
 	id: serial().primaryKey().notNull(),
 	date: date().default(sql`CURRENT_DATE`).notNull(),
@@ -61,11 +50,13 @@ export const transactions = pgTable("transactions", {
 	isInvoiced: boolean("is_invoiced").default(false),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	workCategory: varchar("work_category", { length: 50 }),
 }, (table) => [
+	index("transactions_date_idx").using("btree", table.date.asc().nullsLast().op("date_ops")),
+	index("transactions_type_idx").using("btree", table.type.asc().nullsLast().op("text_ops")),
 	check("transactions_type_check", sql`(type)::text = ANY ((ARRAY['income'::character varying, 'expense'::character varying])::text[])`),
 	check("transactions_category_check", sql`(category)::text = ANY ((ARRAY['work'::character varying, 'life'::character varying])::text[])`),
-	index("transactions_date_idx").on(table.date),
-	index("transactions_type_idx").on(table.type),
+	check("transactions_work_category_check", sql`(work_category)::text = ANY ((ARRAY['accommodation'::character varying, 'fuel'::character varying, 'printing'::character varying, 'transport'::character varying])::text[])`),
 ]);
 
 export const englishNotes = pgTable("english_notes", {
@@ -75,7 +66,7 @@ export const englishNotes = pgTable("english_notes", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
-	index("english_notes_date_idx").on(table.date),
+	index("english_notes_date_idx").using("btree", table.date.asc().nullsLast().op("date_ops")),
 ]);
 
 export const aiLearningNotes = pgTable("ai_learning_notes", {
@@ -97,7 +88,7 @@ export const readingNotes = pgTable("reading_notes", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
-	index("reading_notes_date_idx").on(table.date),
+	index("reading_notes_date_idx").using("btree", table.date.asc().nullsLast().op("date_ops")),
 ]);
 
 export const dailyPlans = pgTable("daily_plans", {
@@ -111,15 +102,36 @@ export const dailyPlans = pgTable("daily_plans", {
 
 export const planItems = pgTable("plan_items", {
 	id: serial().primaryKey().notNull(),
-	planId: integer("plan_id").notNull().references(() => dailyPlans.id, { onDelete: "cascade" }),
+	planId: integer("plan_id").notNull(),
 	title: text().notNull(),
 	scheduledTime: time("scheduled_time"),
-	status: varchar({ length: 20 }).default("pending").notNull(),
+	status: varchar({ length: 20 }).default('pending').notNull(),
 	postponeUntil: timestamp("postpone_until", { mode: 'string' }),
 	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
-	index("plan_items_plan_id_idx").on(table.planId),
-	index("plan_items_status_idx").on(table.status),
-	check("plan_items_status_check", sql`(status)::text = ANY ((ARRAY['pending'::character varying, 'completed'::character varying, 'postponed'::character varying])::text[])`),
+	index("plan_items_plan_id_idx").using("btree", table.planId.asc().nullsLast().op("int4_ops")),
+	index("plan_items_status_idx").using("btree", table.status.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.planId],
+			foreignColumns: [dailyPlans.id],
+			name: "plan_items_plan_id_daily_plans_id_fk"
+		}).onDelete("cascade"),
+	check("plan_items_status_check", sql`(status)::text = ANY (ARRAY[('pending'::character varying)::text, ('completed'::character varying)::text, ('postponed'::character varying)::text])`),
+]);
+
+export const subGoals = pgTable("sub_goals", {
+	id: serial().primaryKey().notNull(),
+	goalId: integer("goal_id").notNull(),
+	title: text().notNull(),
+	isCompleted: boolean("is_completed").default(false),
+	createdAt: timestamp("created_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+	index("sub_goals_goal_id_idx").using("btree", table.goalId.asc().nullsLast().op("int4_ops")),
+	foreignKey({
+			columns: [table.goalId],
+			foreignColumns: [goals.id],
+			name: "sub_goals_goal_id_goals_id_fk"
+		}).onDelete("cascade"),
 ]);

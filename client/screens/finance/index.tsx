@@ -19,6 +19,8 @@ import { useFocusEffect } from 'expo-router';
 
 const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
 
+type WorkCategory = 'accommodation' | 'fuel' | 'printing' | 'transport';
+
 interface Transaction {
   id: number;
   date: string;
@@ -27,7 +29,22 @@ interface Transaction {
   category: 'work' | 'life';
   description: string;
   is_invoiced: boolean;
+  work_category: WorkCategory | null;
 }
+
+const WORK_CATEGORY_LABELS: Record<WorkCategory, string> = {
+  accommodation: '住宿费',
+  fuel: '油费',
+  printing: '打印费',
+  transport: '通行费',
+};
+
+const WORK_CATEGORY_ICONS: Record<WorkCategory, keyof typeof FontAwesome6.glyphMap> = {
+  accommodation: 'hotel',
+  fuel: 'gas-pump',
+  printing: 'print',
+  transport: 'car',
+};
 
 export default function FinanceScreen() {
   const insets = useSafeAreaInsets();
@@ -35,11 +52,14 @@ export default function FinanceScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Transaction | null>(null);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
 
   // Form state
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<'work' | 'life'>('life');
+  const [workCategory, setWorkCategory] = useState<WorkCategory>('accommodation');
   const [description, setDescription] = useState('');
   const [isInvoiced, setIsInvoiced] = useState(false);
 
@@ -70,6 +90,7 @@ export default function FinanceScreen() {
     setType('expense');
     setAmount('');
     setCategory('life');
+    setWorkCategory('accommodation');
     setDescription('');
     setIsInvoiced(false);
     setModalVisible(true);
@@ -80,6 +101,7 @@ export default function FinanceScreen() {
     setType(item.type);
     setAmount(item.amount);
     setCategory(item.category);
+    setWorkCategory(item.work_category || 'accommodation');
     setDescription(item.description);
     setIsInvoiced(item.is_invoiced);
     setModalVisible(true);
@@ -95,24 +117,26 @@ export default function FinanceScreen() {
       return;
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       type,
       amount: parseFloat(amount),
       category,
       description: description.trim(),
       is_invoiced: type === 'expense' && category === 'work' ? isInvoiced : false,
     };
+    
+    if (type === 'expense' && category === 'work') {
+      payload.work_category = workCategory;
+    }
 
     try {
       if (editingItem) {
-        // Update
         await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${editingItem.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
       } else {
-        // Create
         await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -147,6 +171,38 @@ export default function FinanceScreen() {
     ]);
   };
 
+  const handleExport = async () => {
+    const [year, month] = exportMonth.split('-');
+    const startDate = `${year}-${month}-01`;
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const endDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
+
+    try {
+      const response = await fetch(
+        `${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/export?start=${startDate}&end=${endDate}`
+      );
+      if (!response.ok) throw new Error('Export failed');
+      const csvContent = await response.text();
+      
+      // 在Web端下载，在移动端显示内容
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `work-expenses-${exportMonth}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        Alert.alert('导出成功', `文件已保存，月份：${exportMonth}`);
+      }
+      setExportModalVisible(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+      Alert.alert('错误', '导出失败');
+    }
+  };
+
   const todayTotal = transactions
     .filter(t => t.date === new Date().toISOString().split('T')[0])
     .reduce((acc, t) => {
@@ -155,12 +211,17 @@ export default function FinanceScreen() {
     }, 0);
 
   return (
-    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F0F0F3">
+    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>收支记录</Text>
-        <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-          <FontAwesome6 name="plus" size={16} color="#FFF" />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.exportButton} onPress={() => setExportModalVisible(true)}>
+            <FontAwesome6 name="download" size={14} color="#2D7D46" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
+            <FontAwesome6 name="plus" size={14} color="#FFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
@@ -169,20 +230,16 @@ export default function FinanceScreen() {
       >
         {/* Today Summary */}
         <View style={styles.summaryCard}>
-          <View style={styles.shadowDark}>
-            <View style={styles.shadowLight}>
-              <Text style={styles.summaryLabel}>今日结余</Text>
-              <Text style={[styles.summaryValue, { color: todayTotal >= 0 ? '#00B894' : '#FF6B6B' }]}>
-                {todayTotal >= 0 ? '+' : ''}{todayTotal.toFixed(2)}
-              </Text>
-            </View>
-          </View>
+          <Text style={styles.summaryLabel}>今日结余</Text>
+          <Text style={[styles.summaryValue, { color: todayTotal >= 0 ? '#2D7D46' : '#E53E3E' }]}>
+            {todayTotal >= 0 ? '+' : ''}{todayTotal.toFixed(2)}
+          </Text>
         </View>
 
         {/* Transaction List */}
         {transactions.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <FontAwesome6 name="receipt" size={48} color="#B2BEC3" />
+            <FontAwesome6 name="receipt" size={48} color="#C6E5C6" />
             <Text style={styles.emptyText}>暂无记录</Text>
             <Text style={styles.emptySubText}>点击右上角 + 添加第一笔记录</Text>
           </View>
@@ -194,41 +251,42 @@ export default function FinanceScreen() {
               onPress={() => openEditModal(item)}
               style={styles.transactionCard}
             >
-              <View style={styles.shadowDark}>
-                <View style={styles.shadowLight}>
-                  <View style={styles.transactionRow}>
-                    <View style={[
-                      styles.typeIcon,
-                      { backgroundColor: item.type === 'income' ? 'rgba(0,184,148,0.12)' : 'rgba(255,107,107,0.12)' }
-                    ]}>
-                      <FontAwesome6
-                        name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
-                        size={16}
-                        color={item.type === 'income' ? '#00B894' : '#FF6B6B'}
-                      />
+              <View style={styles.transactionRow}>
+                <View style={[
+                  styles.typeIcon,
+                  { backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE' }
+                ]}>
+                  <FontAwesome6
+                    name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
+                    size={14}
+                    color={item.type === 'income' ? '#2D7D46' : '#E53E3E'}
+                  />
+                </View>
+                <View style={styles.transactionInfo}>
+                  <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
+                  <View style={styles.transactionMeta}>
+                    <Text style={styles.transactionDate}>{item.date}</Text>
+                    <View style={styles.tagContainer}>
+                      <Text style={[styles.tag, item.category === 'work' && styles.workTag]}>
+                        {item.category === 'work' ? '工作' : '生活'}
+                      </Text>
+                      {item.category === 'work' && item.work_category && (
+                        <Text style={styles.workCategoryTag}>
+                          {WORK_CATEGORY_LABELS[item.work_category]}
+                        </Text>
+                      )}
+                      {item.is_invoiced && (
+                        <Text style={styles.invoiceTag}>已开票</Text>
+                      )}
                     </View>
-                    <View style={styles.transactionInfo}>
-                      <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
-                      <View style={styles.transactionMeta}>
-                        <Text style={styles.transactionDate}>{item.date}</Text>
-                        <View style={styles.tagContainer}>
-                          <Text style={[styles.tag, item.category === 'work' && styles.workTag]}>
-                            {item.category === 'work' ? '工作' : '生活'}
-                          </Text>
-                          {item.is_invoiced && (
-                            <Text style={[styles.tag, styles.invoiceTag]}>已开票</Text>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                    <Text style={[
-                      styles.transactionAmount,
-                      { color: item.type === 'income' ? '#00B894' : '#FF6B6B' }
-                    ]}>
-                      {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
-                    </Text>
                   </View>
                 </View>
+                <Text style={[
+                  styles.transactionAmount,
+                  { color: item.type === 'income' ? '#2D7D46' : '#E53E3E' }
+                ]}>
+                  {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
+                </Text>
               </View>
             </TouchableOpacity>
           ))
@@ -236,17 +294,44 @@ export default function FinanceScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Modal */}
+      {/* Export Modal */}
+      <Modal visible={exportModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.exportModalContent}>
+            <Text style={styles.modalTitle}>导出工作支出清单</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>选择月份</Text>
+              <TextInput
+                style={styles.textInput}
+                value={exportMonth}
+                onChangeText={setExportMonth}
+                placeholder="YYYY-MM"
+                placeholderTextColor="#A0AEC0"
+              />
+            </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setExportModalVisible(false)}>
+                <Text style={styles.cancelButtonText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveButton} onPress={handleExport}>
+                <Text style={styles.saveButtonText}>导出CSV</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add/Edit Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalContent}>
+          <View style={styles.editModalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingItem ? '编辑记录' : '新增记录'}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color="#636E72" />
+                <FontAwesome6 name="xmark" size={20} color="#4A5568" />
               </TouchableOpacity>
             </View>
 
@@ -254,7 +339,7 @@ export default function FinanceScreen() {
               {/* Type Toggle */}
               <View style={styles.typeToggle}>
                 <TouchableOpacity
-                  style={[styles.typeButton, type === 'expense' && styles.typeButtonActive]}
+                  style={[styles.typeButton, type === 'expense' && styles.expenseButtonActive]}
                   onPress={() => setType('expense')}
                 >
                   <Text style={[styles.typeButtonText, type === 'expense' && styles.typeButtonTextActive]}>
@@ -265,7 +350,7 @@ export default function FinanceScreen() {
                   style={[styles.typeButton, type === 'income' && styles.incomeButtonActive]}
                   onPress={() => setType('income')}
                 >
-                  <Text style={[styles.typeButtonText, type === 'income' && styles.incomeButtonTextActive]}>
+                  <Text style={[styles.typeButtonText, type === 'income' && styles.typeButtonTextActive]}>
                     收入
                   </Text>
                 </TouchableOpacity>
@@ -281,7 +366,7 @@ export default function FinanceScreen() {
                     value={amount}
                     onChangeText={setAmount}
                     placeholder="0.00"
-                    placeholderTextColor="#B2BEC3"
+                    placeholderTextColor="#A0AEC0"
                     keyboardType="decimal-pad"
                   />
                 </View>
@@ -295,7 +380,7 @@ export default function FinanceScreen() {
                     style={[styles.categoryButton, category === 'life' && styles.categoryButtonActive]}
                     onPress={() => setCategory('life')}
                   >
-                    <FontAwesome6 name="house" size={14} color={category === 'life' ? '#6C63FF' : '#636E72'} />
+                    <FontAwesome6 name="house" size={14} color={category === 'life' ? '#2D7D46' : '#4A5568'} />
                     <Text style={[styles.categoryButtonText, category === 'life' && styles.categoryButtonTextActive]}>
                       生活
                     </Text>
@@ -304,7 +389,7 @@ export default function FinanceScreen() {
                     style={[styles.categoryButton, category === 'work' && styles.categoryButtonActive]}
                     onPress={() => setCategory('work')}
                   >
-                    <FontAwesome6 name="briefcase" size={14} color={category === 'work' ? '#6C63FF' : '#636E72'} />
+                    <FontAwesome6 name="briefcase" size={14} color={category === 'work' ? '#2D7D46' : '#4A5568'} />
                     <Text style={[styles.categoryButtonText, category === 'work' && styles.categoryButtonTextActive]}>
                       工作
                     </Text>
@@ -312,10 +397,34 @@ export default function FinanceScreen() {
                 </View>
               </View>
 
+              {/* Work Category (only for work expense) */}
+              {type === 'expense' && category === 'work' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>工作支出分类</Text>
+                  <View style={styles.workCategoryGrid}>
+                    {(Object.keys(WORK_CATEGORY_LABELS) as WorkCategory[]).map((cat) => (
+                      <TouchableOpacity
+                        key={cat}
+                        style={[styles.workCategoryItem, workCategory === cat && styles.workCategoryItemActive]}
+                        onPress={() => setWorkCategory(cat)}
+                      >
+                        <FontAwesome6
+                          name={WORK_CATEGORY_ICONS[cat]}
+                          size={18}
+                          color={workCategory === cat ? '#2D7D46' : '#4A5568'}
+                        />
+                        <Text style={[styles.workCategoryText, workCategory === cat && styles.workCategoryTextActive]}>
+                          {WORK_CATEGORY_LABELS[cat]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
               {/* Invoice Toggle (only for work expense) */}
               {type === 'expense' && category === 'work' && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>发票</Text>
                   <TouchableOpacity
                     style={styles.invoiceToggle}
                     onPress={() => setIsInvoiced(!isInvoiced)}
@@ -336,7 +445,7 @@ export default function FinanceScreen() {
                   value={description}
                   onChangeText={setDescription}
                   placeholder="输入描述..."
-                  placeholderTextColor="#B2BEC3"
+                  placeholderTextColor="#A0AEC0"
                   multiline
                 />
               </View>
@@ -364,18 +473,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#F0F0F3',
+    backgroundColor: '#F5FAF5',
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#2D3436',
+    fontWeight: '700',
+    color: '#1A202C',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  exportButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -383,59 +504,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   summaryCard: {
-    marginBottom: 16,
-  },
-  shadowDark: {
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-    borderRadius: 24,
-  },
-  shadowLight: {
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: -6, height: -6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    backgroundColor: '#F0F0F3',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 20,
-    elevation: 6,
+    marginBottom: 16,
+    shadowColor: '#2D7D46',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   summaryLabel: {
-    fontSize: 14,
-    color: '#636E72',
+    fontSize: 13,
+    color: '#718096',
     marginBottom: 8,
   },
   summaryValue: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
   },
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#636E72',
+    fontSize: 15,
+    color: '#4A5568',
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 13,
-    color: '#B2BEC3',
+    color: '#A0AEC0',
     marginTop: 8,
   },
   transactionCard: {
-    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   transactionRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   typeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -446,7 +566,7 @@ const styles = StyleSheet.create({
   transactionDesc: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#1A202C',
   },
   transactionMeta: {
     flexDirection: 'row',
@@ -455,28 +575,40 @@ const styles = StyleSheet.create({
   },
   transactionDate: {
     fontSize: 12,
-    color: '#636E72',
+    color: '#718096',
   },
   tagContainer: {
     flexDirection: 'row',
     marginLeft: 8,
+    gap: 4,
   },
   tag: {
     fontSize: 10,
-    color: '#6C63FF',
-    backgroundColor: 'rgba(108,99,255,0.1)',
+    color: '#718096',
+    backgroundColor: '#F7FAFC',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    marginRight: 4,
   },
   workTag: {
-    color: '#F0932B',
-    backgroundColor: 'rgba(240,147,43,0.1)',
+    color: '#2D7D46',
+    backgroundColor: '#E8F5E9',
+  },
+  workCategoryTag: {
+    fontSize: 10,
+    color: '#2B6CB0',
+    backgroundColor: '#EBF8FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   invoiceTag: {
-    color: '#00B894',
-    backgroundColor: 'rgba(0,184,148,0.1)',
+    fontSize: 10,
+    color: '#2D7D46',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   transactionAmount: {
     fontSize: 16,
@@ -484,14 +616,21 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: '#F0F0F3',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '80%',
+  exportModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  editModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -499,29 +638,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8EB',
+    borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2D3436',
+    color: '#1A202C',
   },
   modalBody: {
     padding: 20,
-    maxHeight: 400,
+    maxHeight: 450,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#4A5568',
     marginBottom: 8,
   },
   typeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
@@ -532,41 +671,40 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
-  typeButtonActive: {
-    backgroundColor: '#FF6B6B',
+  expenseButtonActive: {
+    backgroundColor: '#E53E3E',
   },
   incomeButtonActive: {
-    backgroundColor: '#00B894',
+    backgroundColor: '#2D7D46',
   },
   typeButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#636E72',
+    color: '#4A5568',
   },
   typeButtonTextActive: {
-    color: '#FFF',
-  },
-  incomeButtonTextActive: {
     color: '#FFF',
   },
   amountInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   currencySymbol: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#636E72',
+    color: '#4A5568',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
     fontSize: 24,
     fontWeight: '700',
-    color: '#2D3436',
+    color: '#1A202C',
     paddingVertical: 12,
   },
   categoryToggle: {
@@ -579,18 +717,49 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     gap: 6,
   },
   categoryButtonActive: {
-    backgroundColor: 'rgba(108,99,255,0.15)',
+    backgroundColor: '#E8F5E9',
+    borderColor: '#2D7D46',
   },
   categoryButtonText: {
     fontSize: 14,
-    color: '#636E72',
+    color: '#4A5568',
   },
   categoryButtonTextActive: {
-    color: '#6C63FF',
+    color: '#2D7D46',
+    fontWeight: '600',
+  },
+  workCategoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  workCategoryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  workCategoryItemActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#2D7D46',
+  },
+  workCategoryText: {
+    fontSize: 13,
+    color: '#4A5568',
+  },
+  workCategoryTextActive: {
+    color: '#2D7D46',
     fontWeight: '600',
   },
   invoiceToggle: {
@@ -598,29 +767,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#B2BEC3',
+    borderColor: '#CBD5E0',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
   },
   checkboxActive: {
-    backgroundColor: '#6C63FF',
-    borderColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
   },
   invoiceText: {
     fontSize: 14,
-    color: '#2D3436',
+    color: '#4A5568',
   },
   textInput: {
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 15,
-    color: '#2D3436',
+    color: '#1A202C',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     minHeight: 80,
     textAlignVertical: 'top',
   },
@@ -629,25 +801,25 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8EB',
+    borderTopColor: '#E2E8F0',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#636E72',
+    color: '#4A5568',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     alignItems: 'center',
   },
   saveButtonText: {

@@ -65,10 +65,10 @@ router.get('/:id', async (req, res) => {
 // POST /api/v1/goals
 router.post('/', async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, summary } = req.body;
     const { data, error } = await client
       .from('goals')
-      .insert({ title, description: description || '' })
+      .insert({ title, description: description || '', summary: summary || '' })
       .select()
       .single();
     if (error) throw error;
@@ -83,11 +83,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, progress } = req.body;
+    const { title, description, progress, summary } = req.body;
     const updateData: Record<string, unknown> = {};
     if (title !== undefined) updateData.title = title;
     if (description !== undefined) updateData.description = description;
     if (progress !== undefined) updateData.progress = progress;
+    if (summary !== undefined) updateData.summary = summary;
 
     const { data, error } = await client
       .from('goals')

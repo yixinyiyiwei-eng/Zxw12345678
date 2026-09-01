@@ -2,30 +2,17 @@ import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { useCSSVariable } from 'uniwind';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const [background, muted, accent, border] = useCSSVariable([
-    '--color-background',
-    '--color-muted',
-    '--color-accent',
-    '--color-border',
-  ]) as string[];
 
   let tabBarStyle = {
-    backgroundColor: '#F0F0F3',
-    borderTopWidth: 0,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
-    paddingTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
     paddingBottom: insets.bottom + 8,
-    height: 70 + insets.bottom,
+    height: 60 + insets.bottom,
   };
 
   if (Platform.OS === 'web') {
@@ -40,12 +27,12 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle,
-        tabBarActiveTintColor: '#6C63FF',
-        tabBarInactiveTintColor: '#B2BEC3',
+        tabBarActiveTintColor: '#2D7D46',
+        tabBarInactiveTintColor: '#A0AEC0',
         tabBarLabelStyle: {
           fontSize: 10,
           fontWeight: '600',
-          marginTop: 3,
+          marginTop: 2,
         },
       }}
     >
@@ -54,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: '工作台',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="house" size={20} color={color} />
+            <FontAwesome6 name="house" size={18} color={color} />
           ),
         }}
       />
@@ -63,7 +50,7 @@ export default function TabLayout() {
         options={{
           title: '财务',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="wallet" size={20} color={color} />
+            <FontAwesome6 name="wallet" size={18} color={color} />
           ),
         }}
       />
@@ -72,7 +59,7 @@ export default function TabLayout() {
         options={{
           title: '日程',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="calendar-days" size={20} color={color} />
+            <FontAwesome6 name="calendar-days" size={18} color={color} />
           ),
         }}
       />
@@ -81,7 +68,7 @@ export default function TabLayout() {
         options={{
           title: '目标',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="bullseye" size={20} color={color} />
+            <FontAwesome6 name="bullseye" size={18} color={color} />
           ),
         }}
       />
@@ -90,7 +77,7 @@ export default function TabLayout() {
         options={{
           title: '笔记',
           tabBarIcon: ({ color }) => (
-            <FontAwesome6 name="book-open" size={20} color={color} />
+            <FontAwesome6 name="book-open" size={18} color={color} />
           ),
         }}
       />

@@ -31,6 +31,7 @@ interface Goal {
   title: string;
   description: string;
   progress: number;
+  summary: string;
   sub_goals: SubGoal[];
 }
 
@@ -46,6 +47,7 @@ export default function GoalsScreen() {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [summary, setSummary] = useState('');
   const [subGoalTitle, setSubGoalTitle] = useState('');
 
   const fetchGoals = useCallback(async () => {
@@ -74,6 +76,7 @@ export default function GoalsScreen() {
     setEditingGoal(null);
     setTitle('');
     setDescription('');
+    setSummary('');
     setModalVisible(true);
   };
 
@@ -81,6 +84,7 @@ export default function GoalsScreen() {
     setEditingGoal(goal);
     setTitle(goal.title);
     setDescription(goal.description || '');
+    setSummary(goal.summary || '');
     setModalVisible(true);
   };
 
@@ -98,6 +102,7 @@ export default function GoalsScreen() {
           body: JSON.stringify({
             title: title.trim(),
             description: description.trim(),
+            summary: summary.trim(),
           }),
         });
       } else {
@@ -107,6 +112,7 @@ export default function GoalsScreen() {
           body: JSON.stringify({
             title: title.trim(),
             description: description.trim(),
+            summary: summary.trim(),
           }),
         });
       }
@@ -198,11 +204,11 @@ export default function GoalsScreen() {
   };
 
   return (
-    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F0F0F3">
+    <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>目标管理</Text>
         <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-          <FontAwesome6 name="plus" size={16} color="#FFF" />
+          <FontAwesome6 name="plus" size={14} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -212,76 +218,83 @@ export default function GoalsScreen() {
       >
         {goals.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <FontAwesome6 name="bullseye" size={48} color="#B2BEC3" />
+            <FontAwesome6 name="bullseye" size={48} color="#C6E5C6" />
             <Text style={styles.emptyText}>还没有设定目标</Text>
             <Text style={styles.emptySubText}>点击右上角 + 创建你的第一个目标</Text>
           </View>
         ) : (
           goals.map((goal) => (
             <View key={goal.id} style={styles.goalCard}>
-              <View style={styles.shadowDark}>
-                <View style={styles.shadowLight}>
-                  <TouchableOpacity
-                    onPress={() => openEditModal(goal)}
-                    onLongPress={() => deleteGoal(goal.id)}
-                  >
-                    <View style={styles.goalHeader}>
-                      <View style={styles.goalInfo}>
-                        <Text style={styles.goalTitle} numberOfLines={1}>{goal.title}</Text>
-                        {goal.description ? (
-                          <Text style={styles.goalDesc} numberOfLines={2}>{goal.description}</Text>
-                        ) : null}
-                      </View>
-                      <View style={styles.progressCircle}>
-                        <Text style={styles.progressText}>{goal.progress}%</Text>
-                      </View>
-                    </View>
-                    <View style={styles.progressBar}>
-                      <View style={[styles.progressFill, { width: `${goal.progress}%` }]} />
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Sub Goals */}
-                  {goal.sub_goals.length > 0 && (
-                    <View style={styles.subGoalsContainer}>
-                      {goal.sub_goals.map((subGoal) => (
-                        <View key={subGoal.id} style={styles.subGoalRow}>
-                          <TouchableOpacity
-                            style={styles.subGoalCheckbox}
-                            onPress={() => toggleSubGoal(subGoal)}
-                          >
-                            <FontAwesome6
-                              name={subGoal.is_completed ? 'check-circle' : 'circle'}
-                              size={18}
-                              color={subGoal.is_completed ? '#00B894' : '#B2BEC3'}
-                            />
-                          </TouchableOpacity>
-                          <Text
-                            style={[
-                              styles.subGoalTitle,
-                              subGoal.is_completed && styles.subGoalCompleted
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {subGoal.title}
-                          </Text>
-                          <TouchableOpacity onPress={() => deleteSubGoal(subGoal.id)}>
-                            <FontAwesome6 name="trash" size={12} color="#FF6B6B" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                    </View>
-                  )}
-
-                  <TouchableOpacity
-                    style={styles.addSubGoalButton}
-                    onPress={() => openSubGoalModal(goal.id)}
-                  >
-                    <FontAwesome6 name="plus" size={12} color="#6C63FF" />
-                    <Text style={styles.addSubGoalText}>添加子目标</Text>
-                  </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => openEditModal(goal)}
+                onLongPress={() => deleteGoal(goal.id)}
+              >
+                <View style={styles.goalHeader}>
+                  <View style={styles.goalInfo}>
+                    <Text style={styles.goalTitle} numberOfLines={1}>{goal.title}</Text>
+                    {goal.description ? (
+                      <Text style={styles.goalDesc} numberOfLines={2}>{goal.description}</Text>
+                    ) : null}
+                  </View>
+                  <View style={styles.progressCircle}>
+                    <Text style={styles.progressText}>{goal.progress}%</Text>
+                  </View>
                 </View>
-              </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${goal.progress}%` }]} />
+                </View>
+
+                {/* Summary Box */}
+                {goal.summary ? (
+                  <View style={styles.summaryBox}>
+                    <View style={styles.summaryHeader}>
+                      <FontAwesome6 name="clipboard-list" size={12} color="#2D7D46" />
+                      <Text style={styles.summaryLabel}>进程总结</Text>
+                    </View>
+                    <Text style={styles.summaryText}>{goal.summary}</Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+
+              {/* Sub Goals */}
+              {goal.sub_goals.length > 0 && (
+                <View style={styles.subGoalsContainer}>
+                  {goal.sub_goals.map((subGoal) => (
+                    <View key={subGoal.id} style={styles.subGoalRow}>
+                      <TouchableOpacity
+                        style={styles.subGoalCheckbox}
+                        onPress={() => toggleSubGoal(subGoal)}
+                      >
+                        <FontAwesome6
+                          name={subGoal.is_completed ? 'check-circle' : 'circle'}
+                          size={18}
+                          color={subGoal.is_completed ? '#2D7D46' : '#CBD5E0'}
+                        />
+                      </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.subGoalTitle,
+                          subGoal.is_completed && styles.subGoalCompleted
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {subGoal.title}
+                      </Text>
+                      <TouchableOpacity onPress={() => deleteSubGoal(subGoal.id)}>
+                        <FontAwesome6 name="trash" size={12} color="#E53E3E" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.addSubGoalButton}
+                onPress={() => openSubGoalModal(goal.id)}
+              >
+                <FontAwesome6 name="plus" size={12} color="#2D7D46" />
+                <Text style={styles.addSubGoalText}>添加子目标</Text>
+              </TouchableOpacity>
             </View>
           ))
         )}
@@ -298,11 +311,11 @@ export default function GoalsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingGoal ? '编辑目标' : '新增目标'}</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color="#636E72" />
+                <FontAwesome6 name="xmark" size={20} color="#4A5568" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>目标标题</Text>
                 <TextInput
@@ -310,7 +323,7 @@ export default function GoalsScreen() {
                   value={title}
                   onChangeText={setTitle}
                   placeholder="输入目标标题..."
-                  placeholderTextColor="#B2BEC3"
+                  placeholderTextColor="#A0AEC0"
                 />
               </View>
 
@@ -321,11 +334,23 @@ export default function GoalsScreen() {
                   value={description}
                   onChangeText={setDescription}
                   placeholder="描述你的目标..."
-                  placeholderTextColor="#B2BEC3"
+                  placeholderTextColor="#A0AEC0"
                   multiline
                 />
               </View>
-            </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>进程总结</Text>
+                <TextInput
+                  style={[styles.textInput, styles.multilineInput]}
+                  value={summary}
+                  onChangeText={setSummary}
+                  placeholder="记录目标进展、遇到的问题、下一步计划..."
+                  placeholderTextColor="#A0AEC0"
+                  multiline
+                />
+              </View>
+            </ScrollView>
 
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
@@ -349,7 +374,7 @@ export default function GoalsScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>添加子目标</Text>
               <TouchableOpacity onPress={() => setSubGoalModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color="#636E72" />
+                <FontAwesome6 name="xmark" size={20} color="#4A5568" />
               </TouchableOpacity>
             </View>
 
@@ -361,7 +386,7 @@ export default function GoalsScreen() {
                   value={subGoalTitle}
                   onChangeText={setSubGoalTitle}
                   placeholder="输入子目标..."
-                  placeholderTextColor="#B2BEC3"
+                  placeholderTextColor="#A0AEC0"
                 />
               </View>
             </View>
@@ -388,18 +413,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#F0F0F3',
+    backgroundColor: '#F5FAF5',
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
-    color: '#2D3436',
+    fontWeight: '700',
+    color: '#1A202C',
   },
   addButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -411,34 +436,25 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#636E72',
+    fontSize: 15,
+    color: '#4A5568',
     marginTop: 16,
   },
   emptySubText: {
     fontSize: 13,
-    color: '#B2BEC3',
+    color: '#A0AEC0',
     marginTop: 8,
   },
   goalCard: {
-    marginBottom: 16,
-  },
-  shadowDark: {
-    shadowColor: '#D1D9E6',
-    shadowOffset: { width: 6, height: 6 },
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-    borderRadius: 24,
-  },
-  shadowLight: {
-    shadowColor: '#FFFFFF',
-    shadowOffset: { width: -6, height: -6 },
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    backgroundColor: '#F0F0F3',
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 20,
-    elevation: 6,
+    marginBottom: 16,
+    shadowColor: '#2D7D46',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   goalHeader: {
     flexDirection: 'row',
@@ -452,42 +468,66 @@ const styles = StyleSheet.create({
   goalTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#2D3436',
+    color: '#1A202C',
   },
   goalDesc: {
     fontSize: 13,
-    color: '#636E72',
+    color: '#718096',
     marginTop: 4,
   },
   progressCircle: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(0,184,148,0.12)',
+    backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
   },
   progressText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#00B894',
+    color: '#2D7D46',
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E8E8EB',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#00B894',
-    borderRadius: 4,
+    backgroundColor: '#2D7D46',
+    borderRadius: 3,
+  },
+  summaryBox: {
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: '#F0FFF4',
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2D7D46',
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 6,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2D7D46',
+  },
+  summaryText: {
+    fontSize: 13,
+    color: '#4A5568',
+    lineHeight: 20,
   },
   subGoalsContainer: {
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8EB',
+    borderTopColor: '#E2E8F0',
   },
   subGoalRow: {
     flexDirection: 'row',
@@ -500,11 +540,11 @@ const styles = StyleSheet.create({
   subGoalTitle: {
     flex: 1,
     fontSize: 14,
-    color: '#2D3436',
+    color: '#1A202C',
   },
   subGoalCompleted: {
     textDecorationLine: 'line-through',
-    color: '#B2BEC3',
+    color: '#A0AEC0',
   },
   addSubGoalButton: {
     flexDirection: 'row',
@@ -512,25 +552,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     marginTop: 12,
-    backgroundColor: 'rgba(108,99,255,0.08)',
-    borderRadius: 12,
+    backgroundColor: '#F0FFF4',
+    borderRadius: 10,
+    gap: 6,
   },
   addSubGoalText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6C63FF',
-    marginLeft: 6,
+    color: '#2D7D46',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#F0F0F3',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: '60%',
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -538,31 +578,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E8EB',
+    borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#2D3436',
+    color: '#1A202C',
   },
   modalBody: {
     padding: 20,
+    maxHeight: 450,
   },
   inputGroup: {
     marginBottom: 20,
   },
   inputLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#2D3436',
+    color: '#4A5568',
     marginBottom: 8,
   },
   textInput: {
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     borderRadius: 12,
     padding: 16,
     fontSize: 15,
-    color: '#2D3436',
+    color: '#1A202C',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   multilineInput: {
     minHeight: 100,
@@ -573,30 +616,30 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E8E8EB',
+    borderTopColor: '#E2E8F0',
   },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#E8E8EB',
+    backgroundColor: '#F7FAFC',
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#636E72',
+    color: '#4A5568',
   },
   saveButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#6C63FF',
+    backgroundColor: '#2D7D46',
     alignItems: 'center',
   },
   saveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FFF',
+    color: '#FFFFFF',
   },
 });
