@@ -175,7 +175,11 @@ export default function FinanceScreen() {
       await fetchTransactions();
       // 滚动到列表顶部
       setTimeout(() => {
-        scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+        try {
+          scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+        } catch (e) {
+          // Web 平台可能不支持 scrollTo，忽略错误
+        }
       }, 100);
       Alert.alert('成功', '记录已保存');
     } catch (error) {
