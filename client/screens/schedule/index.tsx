@@ -536,7 +536,7 @@ export default function ScheduleScreen() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalBody}>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>事项标题</Text>
                 <TextInput
@@ -885,7 +885,7 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   modalContent: {
     backgroundColor: '#FFFFFF',

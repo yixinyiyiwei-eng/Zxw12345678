@@ -86,6 +86,7 @@ export default function NotesScreen() {
   const [title, setTitle] = useState('');
   const [source, setSource] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
 
   const fetchNotes = useCallback(async () => {
     try {
@@ -123,6 +124,27 @@ export default function NotesScreen() {
       setSource('');
     }
   }, [selectedDate, activeTab, notes]);
+
+  // 自动保存（输入后 2 秒自动保存）
+  useEffect(() => {
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+
+    const timer = setTimeout(() => {
+      if (content.trim() || observation.trim() || thought.trim() || title.trim() || source.trim()) {
+        handleSave();
+      }
+    }, 2000);
+
+    setAutoSaveTimer(timer);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [content, observation, thought, title, source]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

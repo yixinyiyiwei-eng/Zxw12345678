@@ -9,6 +9,7 @@ import dailyReviewsRouter from "./routes/dailyReviews.js";
 import englishNotesRouter from "./routes/englishNotes.js";
 import readingNotesRouter from "./routes/readingNotes.js";
 import aiLearningRouter from "./routes/aiLearning.js";
+import workoutPlansRouter from "./routes/workoutPlans.js";
 
 const app = express();
 const port = process.env.PORT || 9091;
@@ -33,6 +34,7 @@ app.use('/api/v1/daily-reviews', dailyReviewsRouter);
 app.use('/api/v1/english-notes', englishNotesRouter);
 app.use('/api/v1/reading-notes', readingNotesRouter);
 app.use('/api/v1/ai-learning', aiLearningRouter);
+app.use('/api/v1/workout-plans', workoutPlansRouter);
 
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}/`);
