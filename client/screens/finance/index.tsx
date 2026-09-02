@@ -309,29 +309,10 @@ export default function FinanceScreen() {
           </Text>
         </View>
 
-        {/* 导出选项 */}
-        {showExport && (
-          <View style={styles.exportCard}>
-            <Text style={styles.exportLabel}>导出工作支出清单</Text>
-            <View style={styles.exportRow}>
-              <TextInput
-                style={styles.exportInput}
-                value={exportMonth}
-                onChangeText={setExportMonth}
-                placeholder="YYYY-MM"
-                placeholderTextColor="#A0AEC0"
-              />
-              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-                <Text style={styles.exportBtnText}>导出</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {/* 当日记录列表 */}
         {selectedDateTransactions.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>当日记录</Text>
+            <Text style={styles.sectionTitle}>当日记录 ({selectedDateTransactions.length})</Text>
             {selectedDateTransactions.map((item) => (
               <TouchableOpacity
                 key={item.id}
@@ -378,6 +359,25 @@ export default function FinanceScreen() {
                 </View>
               </TouchableOpacity>
             ))}
+          </View>
+        )}
+
+        {/* 导出选项 */}
+        {showExport && (
+          <View style={styles.exportCard}>
+            <Text style={styles.exportLabel}>导出工作支出清单</Text>
+            <View style={styles.exportRow}>
+              <TextInput
+                style={styles.exportInput}
+                value={exportMonth}
+                onChangeText={setExportMonth}
+                placeholder="YYYY-MM"
+                placeholderTextColor="#A0AEC0"
+              />
+              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+                <Text style={styles.exportBtnText}>导出</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
