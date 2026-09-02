@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -46,22 +44,51 @@ const WORK_CATEGORY_ICONS: Record<WorkCategory, keyof typeof FontAwesome6.glyphM
   transport: 'car',
 };
 
+// 获取最近 7 天日期
+const getRecentDates = () => {
+  const dates = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - i);
+    dates.push(date.toISOString().split('T')[0]);
+  }
+  return dates;
+};
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  
+  if (dateStr === today.toISOString().split('T')[0]) return '今天';
+  if (dateStr === yesterday.toISOString().split('T')[0]) return '昨天';
+  
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return `${month}月${day}日 ${weekDays[date.getDay()]}`;
+};
+
 export default function FinanceScreen() {
   const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingItem, setEditingItem] = useState<Transaction | null>(null);
-  const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [showExport, setShowExport] = useState(false);
 
-  // Form state
+  // 编辑状态
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<'work' | 'life'>('life');
   const [workCategory, setWorkCategory] = useState<WorkCategory>('accommodation');
   const [description, setDescription] = useState('');
   const [isInvoiced, setIsInvoiced] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const recentDates = useMemo(() => getRecentDates(), []);
 
   const fetchTransactions = useCallback(async () => {
     try {
@@ -85,27 +112,23 @@ export default function FinanceScreen() {
     setRefreshing(false);
   }, [fetchTransactions]);
 
-  const openAddModal = () => {
-    setEditingItem(null);
-    setType('expense');
-    setAmount('');
-    setCategory('life');
-    setWorkCategory('accommodation');
-    setDescription('');
-    setIsInvoiced(false);
-    setModalVisible(true);
-  };
+  // 获取选中日期的记录
+  const selectedDateTransactions = useMemo(() => {
+    return transactions.filter(t => t.date === selectedDate);
+  }, [transactions, selectedDate]);
 
-  const openEditModal = (item: Transaction) => {
-    setEditingItem(item);
-    setType(item.type);
-    setAmount(item.amount);
-    setCategory(item.category);
-    setWorkCategory(item.work_category || 'accommodation');
-    setDescription(item.description);
-    setIsInvoiced(item.is_invoiced);
-    setModalVisible(true);
-  };
+  // 计算当日结余
+  const dayTotal = useMemo(() => {
+    return selectedDateTransactions.reduce((acc, t) => {
+      const amt = parseFloat(t.amount);
+      return t.type === 'income' ? acc + amt : acc - amt;
+    }, 0);
+  }, [selectedDateTransactions]);
+
+  // 有记录的日期（用于显示绿点）
+  const datesWithRecords = useMemo(() => {
+    return new Set(transactions.map(t => t.date));
+  }, [transactions]);
 
   const handleSave = async () => {
     if (!amount || parseFloat(amount) <= 0) {
@@ -118,6 +141,7 @@ export default function FinanceScreen() {
     }
 
     const payload: Record<string, unknown> = {
+      date: selectedDate,
       type,
       amount: parseFloat(amount),
       category,
@@ -130,8 +154,8 @@ export default function FinanceScreen() {
     }
 
     try {
-      if (editingItem) {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${editingItem.id}`, {
+      if (editingId) {
+        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -143,12 +167,25 @@ export default function FinanceScreen() {
           body: JSON.stringify(payload),
         });
       }
-      setModalVisible(false);
+      // 清空表单
+      setAmount('');
+      setDescription('');
+      setEditingId(null);
       fetchTransactions();
     } catch (error) {
       console.error('Failed to save transaction:', error);
       Alert.alert('错误', '保存失败');
     }
+  };
+
+  const handleEdit = (item: Transaction) => {
+    setEditingId(item.id);
+    setType(item.type);
+    setAmount(item.amount);
+    setCategory(item.category);
+    setWorkCategory(item.work_category || 'accommodation');
+    setDescription(item.description);
+    setIsInvoiced(item.is_invoiced);
   };
 
   const handleDelete = (id: number) => {
@@ -162,6 +199,11 @@ export default function FinanceScreen() {
             await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${id}`, {
               method: 'DELETE',
             });
+            if (editingId === id) {
+              setEditingId(null);
+              setAmount('');
+              setDescription('');
+            }
             fetchTransactions();
           } catch (error) {
             console.error('Failed to delete:', error);
@@ -184,7 +226,6 @@ export default function FinanceScreen() {
       if (!response.ok) throw new Error('Export failed');
       const csvContent = await response.text();
       
-      // 在Web端下载，在移动端显示内容
       if (Platform.OS === 'web') {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -196,77 +237,118 @@ export default function FinanceScreen() {
       } else {
         Alert.alert('导出成功', `文件已保存，月份：${exportMonth}`);
       }
-      setExportModalVisible(false);
+      setShowExport(false);
     } catch (error) {
       console.error('Export failed:', error);
       Alert.alert('错误', '导出失败');
     }
   };
 
-  const todayTotal = transactions
-    .filter(t => t.date === new Date().toISOString().split('T')[0])
-    .reduce((acc, t) => {
-      const amt = parseFloat(t.amount);
-      return t.type === 'income' ? acc + amt : acc - amt;
-    }, 0);
+  const resetForm = () => {
+    setEditingId(null);
+    setType('expense');
+    setAmount('');
+    setCategory('life');
+    setWorkCategory('accommodation');
+    setDescription('');
+    setIsInvoiced(false);
+  };
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={styles.headerTitle}>收支记录</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.exportButton} onPress={() => setExportModalVisible(true)}>
+          <TouchableOpacity style={styles.exportButton} onPress={() => setShowExport(!showExport)}>
             <FontAwesome6 name="download" size={14} color="#2D7D46" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
-            <FontAwesome6 name="plus" size={14} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        {/* Today Summary */}
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+        {/* 日期选择器 */}
+        <View style={styles.dateSelector}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {recentDates.map((date) => (
+              <TouchableOpacity
+                key={date}
+                style={[
+                  styles.dateItem,
+                  selectedDate === date && styles.dateItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedDate(date);
+                  resetForm();
+                }}
+              >
+                <Text style={[
+                  styles.dateText,
+                  selectedDate === date && styles.dateTextActive,
+                ]}>
+                  {formatDate(date)}
+                </Text>
+                {datesWithRecords.has(date) && (
+                  <View style={styles.dateDot} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 当日结余 */}
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>今日结余</Text>
-          <Text style={[styles.summaryValue, { color: todayTotal >= 0 ? '#2D7D46' : '#E53E3E' }]}>
-            {todayTotal >= 0 ? '+' : ''}{todayTotal.toFixed(2)}
+          <Text style={styles.summaryLabel}>{formatDate(selectedDate)}结余</Text>
+          <Text style={[styles.summaryValue, { color: dayTotal >= 0 ? '#2D7D46' : '#E53E3E' }]}>
+            {dayTotal >= 0 ? '+' : ''}{dayTotal.toFixed(2)}
           </Text>
         </View>
 
-        {/* Transaction List */}
-        {transactions.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <FontAwesome6 name="receipt" size={48} color="#C6E5C6" />
-            <Text style={styles.emptyText}>暂无记录</Text>
-            <Text style={styles.emptySubText}>点击右上角 + 添加第一笔记录</Text>
+        {/* 导出选项 */}
+        {showExport && (
+          <View style={styles.exportCard}>
+            <Text style={styles.exportLabel}>导出工作支出清单</Text>
+            <View style={styles.exportRow}>
+              <TextInput
+                style={styles.exportInput}
+                value={exportMonth}
+                onChangeText={setExportMonth}
+                placeholder="YYYY-MM"
+                placeholderTextColor="#A0AEC0"
+              />
+              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+                <Text style={styles.exportBtnText}>导出</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        ) : (
-          transactions.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              onLongPress={() => handleDelete(item.id)}
-              onPress={() => openEditModal(item)}
-              style={styles.transactionCard}
-            >
-              <View style={styles.transactionRow}>
-                <View style={[
-                  styles.typeIcon,
-                  { backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE' }
-                ]}>
-                  <FontAwesome6
-                    name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
-                    size={14}
-                    color={item.type === 'income' ? '#2D7D46' : '#E53E3E'}
-                  />
-                </View>
-                <View style={styles.transactionInfo}>
-                  <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
-                  <View style={styles.transactionMeta}>
-                    <Text style={styles.transactionDate}>{item.date}</Text>
+        )}
+
+        {/* 当日记录列表 */}
+        {selectedDateTransactions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>当日记录</Text>
+            {selectedDateTransactions.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                onLongPress={() => handleDelete(item.id)}
+                onPress={() => handleEdit(item)}
+                style={[
+                  styles.transactionCard,
+                  editingId === item.id && styles.transactionCardActive,
+                ]}
+              >
+                <View style={styles.transactionRow}>
+                  <View style={[
+                    styles.typeIcon,
+                    { backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE' }
+                  ]}>
+                    <FontAwesome6
+                      name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
+                      size={14}
+                      color={item.type === 'income' ? '#2D7D46' : '#E53E3E'}
+                    />
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
                     <View style={styles.tagContainer}>
                       <Text style={[styles.tag, item.category === 'work' && styles.workTag]}>
                         {item.category === 'work' ? '工作' : '生活'}
@@ -281,188 +363,152 @@ export default function FinanceScreen() {
                       )}
                     </View>
                   </View>
+                  <Text style={[
+                    styles.transactionAmount,
+                    { color: item.type === 'income' ? '#2D7D46' : '#E53E3E' }
+                  ]}>
+                    {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
+                  </Text>
                 </View>
-                <Text style={[
-                  styles.transactionAmount,
-                  { color: item.type === 'income' ? '#2D7D46' : '#E53E3E' }
-                ]}>
-                  {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
-        <View style={{ height: 100 }} />
-      </ScrollView>
 
-      {/* Export Modal */}
-      <Modal visible={exportModalVisible} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.exportModalContent}>
-            <Text style={styles.modalTitle}>导出工作支出清单</Text>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>选择月份</Text>
+        {/* 编辑表单 */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{editingId ? '编辑记录' : '新增记录'}</Text>
+          
+          {/* 类型切换 */}
+          <View style={styles.typeToggle}>
+            <TouchableOpacity
+              style={[styles.typeButton, type === 'expense' && styles.expenseButtonActive]}
+              onPress={() => setType('expense')}
+            >
+              <Text style={[styles.typeButtonText, type === 'expense' && styles.typeButtonTextActive]}>
+                支出
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.typeButton, type === 'income' && styles.incomeButtonActive]}
+              onPress={() => setType('income')}
+            >
+              <Text style={[styles.typeButtonText, type === 'income' && styles.typeButtonTextActive]}>
+                收入
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 金额输入 */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>金额</Text>
+            <View style={styles.amountInputContainer}>
+              <Text style={styles.currencySymbol}>¥</Text>
               <TextInput
-                style={styles.textInput}
-                value={exportMonth}
-                onChangeText={setExportMonth}
-                placeholder="YYYY-MM"
+                style={styles.amountInput}
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="0.00"
                 placeholderTextColor="#A0AEC0"
+                keyboardType="decimal-pad"
               />
             </View>
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setExportModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>取消</Text>
+          </View>
+
+          {/* 类别 */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>类别</Text>
+            <View style={styles.categoryToggle}>
+              <TouchableOpacity
+                style={[styles.categoryButton, category === 'life' && styles.categoryButtonActive]}
+                onPress={() => setCategory('life')}
+              >
+                <FontAwesome6 name="house" size={14} color={category === 'life' ? '#2D7D46' : '#4A5568'} />
+                <Text style={[styles.categoryButtonText, category === 'life' && styles.categoryButtonTextActive]}>
+                  生活
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleExport}>
-                <Text style={styles.saveButtonText}>导出CSV</Text>
+              <TouchableOpacity
+                style={[styles.categoryButton, category === 'work' && styles.categoryButtonActive]}
+                onPress={() => setCategory('work')}
+              >
+                <FontAwesome6 name="briefcase" size={14} color={category === 'work' ? '#2D7D46' : '#4A5568'} />
+                <Text style={[styles.categoryButtonText, category === 'work' && styles.categoryButtonTextActive]}>
+                  工作
+                </Text>
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* 工作支出分类 */}
+          {type === 'expense' && category === 'work' && (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>工作支出分类</Text>
+              <View style={styles.workCategoryGrid}>
+                {(Object.keys(WORK_CATEGORY_LABELS) as WorkCategory[]).map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.workCategoryItem, workCategory === cat && styles.workCategoryItemActive]}
+                    onPress={() => setWorkCategory(cat)}
+                  >
+                    <FontAwesome6
+                      name={WORK_CATEGORY_ICONS[cat]}
+                      size={18}
+                      color={workCategory === cat ? '#2D7D46' : '#4A5568'}
+                    />
+                    <Text style={[styles.workCategoryText, workCategory === cat && styles.workCategoryTextActive]}>
+                      {WORK_CATEGORY_LABELS[cat]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 发票标记 */}
+          {type === 'expense' && category === 'work' && (
+            <View style={styles.inputGroup}>
+              <TouchableOpacity
+                style={styles.invoiceToggle}
+                onPress={() => setIsInvoiced(!isInvoiced)}
+              >
+                <View style={[styles.checkbox, isInvoiced && styles.checkboxActive]}>
+                  {isInvoiced && <FontAwesome6 name="check" size={12} color="#FFF" />}
+                </View>
+                <Text style={styles.invoiceText}>已开具发票</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* 描述 */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>描述</Text>
+            <TextInput
+              style={styles.textInput}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="输入描述..."
+              placeholderTextColor="#A0AEC0"
+              multiline
+            />
+          </View>
+
+          {/* 保存按钮 */}
+          <View style={styles.actionRow}>
+            {editingId && (
+              <TouchableOpacity style={styles.resetButton} onPress={resetForm}>
+                <Text style={styles.resetButtonText}>取消编辑</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <FontAwesome6 name="check" size={16} color="#FFF" />
+              <Text style={styles.saveButtonText}>保存</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
 
-      {/* Add/Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.editModalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingItem ? '编辑记录' : '新增记录'}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <FontAwesome6 name="xmark" size={20} color="#4A5568" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody}>
-              {/* Type Toggle */}
-              <View style={styles.typeToggle}>
-                <TouchableOpacity
-                  style={[styles.typeButton, type === 'expense' && styles.expenseButtonActive]}
-                  onPress={() => setType('expense')}
-                >
-                  <Text style={[styles.typeButtonText, type === 'expense' && styles.typeButtonTextActive]}>
-                    支出
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.typeButton, type === 'income' && styles.incomeButtonActive]}
-                  onPress={() => setType('income')}
-                >
-                  <Text style={[styles.typeButtonText, type === 'income' && styles.typeButtonTextActive]}>
-                    收入
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Amount Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>金额</Text>
-                <View style={styles.amountInputContainer}>
-                  <Text style={styles.currencySymbol}>¥</Text>
-                  <TextInput
-                    style={styles.amountInput}
-                    value={amount}
-                    onChangeText={setAmount}
-                    placeholder="0.00"
-                    placeholderTextColor="#A0AEC0"
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-              </View>
-
-              {/* Category */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>类别</Text>
-                <View style={styles.categoryToggle}>
-                  <TouchableOpacity
-                    style={[styles.categoryButton, category === 'life' && styles.categoryButtonActive]}
-                    onPress={() => setCategory('life')}
-                  >
-                    <FontAwesome6 name="house" size={14} color={category === 'life' ? '#2D7D46' : '#4A5568'} />
-                    <Text style={[styles.categoryButtonText, category === 'life' && styles.categoryButtonTextActive]}>
-                      生活
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.categoryButton, category === 'work' && styles.categoryButtonActive]}
-                    onPress={() => setCategory('work')}
-                  >
-                    <FontAwesome6 name="briefcase" size={14} color={category === 'work' ? '#2D7D46' : '#4A5568'} />
-                    <Text style={[styles.categoryButtonText, category === 'work' && styles.categoryButtonTextActive]}>
-                      工作
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Work Category (only for work expense) */}
-              {type === 'expense' && category === 'work' && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>工作支出分类</Text>
-                  <View style={styles.workCategoryGrid}>
-                    {(Object.keys(WORK_CATEGORY_LABELS) as WorkCategory[]).map((cat) => (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.workCategoryItem, workCategory === cat && styles.workCategoryItemActive]}
-                        onPress={() => setWorkCategory(cat)}
-                      >
-                        <FontAwesome6
-                          name={WORK_CATEGORY_ICONS[cat]}
-                          size={18}
-                          color={workCategory === cat ? '#2D7D46' : '#4A5568'}
-                        />
-                        <Text style={[styles.workCategoryText, workCategory === cat && styles.workCategoryTextActive]}>
-                          {WORK_CATEGORY_LABELS[cat]}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Invoice Toggle (only for work expense) */}
-              {type === 'expense' && category === 'work' && (
-                <View style={styles.inputGroup}>
-                  <TouchableOpacity
-                    style={styles.invoiceToggle}
-                    onPress={() => setIsInvoiced(!isInvoiced)}
-                  >
-                    <View style={[styles.checkbox, isInvoiced && styles.checkboxActive]}>
-                      {isInvoiced && <FontAwesome6 name="check" size={12} color="#FFF" />}
-                    </View>
-                    <Text style={styles.invoiceText}>已开具发票</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              {/* Description */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>描述</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="输入描述..."
-                  placeholderTextColor="#A0AEC0"
-                  multiline
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelButtonText}>取消</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <Text style={styles.saveButtonText}>保存</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </Screen>
   );
 }
@@ -493,16 +539,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#2D7D46',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   scrollContent: {
     paddingHorizontal: 20,
+  },
+  dateSelector: {
+    marginBottom: 16,
+  },
+  dateItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    marginRight: 10,
+    alignItems: 'center',
+    minWidth: 80,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  dateItemActive: {
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
+  },
+  dateText: {
+    fontSize: 13,
+    color: '#4A5568',
+    fontWeight: '500',
+  },
+  dateTextActive: {
+    color: '#FFFFFF',
+  },
+  dateDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2D7D46',
+    marginTop: 4,
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
@@ -524,30 +595,67 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 60,
+  exportCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  emptyText: {
-    fontSize: 15,
-    color: '#4A5568',
-    marginTop: 16,
+  exportLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1A202C',
+    marginBottom: 12,
   },
-  emptySubText: {
-    fontSize: 13,
-    color: '#A0AEC0',
-    marginTop: 8,
+  exportRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  exportInput: {
+    flex: 1,
+    backgroundColor: '#F7FAFC',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1A202C',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  exportBtn: {
+    backgroundColor: '#2D7D46',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 10,
+    justifyContent: 'center',
+  },
+  exportBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A202C',
+    marginBottom: 12,
   },
   transactionCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  transactionCardActive: {
+    borderColor: '#2D7D46',
+    backgroundColor: '#F0FFF4',
   },
   transactionRow: {
     flexDirection: 'row',
@@ -569,18 +677,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A202C',
   },
-  transactionMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: '#718096',
-  },
   tagContainer: {
     flexDirection: 'row',
-    marginLeft: 8,
+    marginTop: 4,
     gap: 4,
   },
   tag: {
@@ -615,56 +714,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  exportModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  editModalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1A202C',
-  },
-  modalBody: {
-    flex: 1,
-    padding: 20,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#4A5568',
-    marginBottom: 8,
-  },
   typeToggle: {
     flexDirection: 'row',
     backgroundColor: '#F7FAFC',
     borderRadius: 12,
     padding: 4,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   typeButton: {
     flex: 1,
@@ -685,6 +740,15 @@ const styles = StyleSheet.create({
   },
   typeButtonTextActive: {
     color: '#FFF',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4A5568',
+    marginBottom: 8,
   },
   amountInputContainer: {
     flexDirection: 'row',
@@ -797,31 +861,34 @@ const styles = StyleSheet.create({
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  modalFooter: {
+  actionRow: {
     flexDirection: 'row',
-    padding: 20,
     gap: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    marginTop: 8,
   },
-  cancelButton: {
+  resetButton: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: '#F7FAFC',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  cancelButtonText: {
+  resetButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#4A5568',
   },
   saveButton: {
-    flex: 1,
+    flex: 2,
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: '#2D7D46',
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   saveButtonText: {
     fontSize: 15,
