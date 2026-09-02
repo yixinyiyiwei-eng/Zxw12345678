@@ -44,6 +44,7 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
     if (value) return parseInt(value.split(':')[1]) || 0;
     return 0;
   });
+  const [mode, setMode] = useState<'hour' | 'minute'>('hour');
 
   const hourMarkers = Array.from({ length: 12 }, (_, i) => i);
   const minuteMarkers = Array.from({ length: 12 }, (_, i) => i * 5);
@@ -54,6 +55,7 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
     setHours(newHour);
     const timeStr = `${newHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     onChange(timeStr);
+    setMode('minute'); // 选择小时后自动切换到分钟模式
   };
 
   const handleMinuteSelect = (minute: number) => {
@@ -84,42 +86,91 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
         </TouchableOpacity>
       </View>
 
+      {/* Mode Switcher */}
+      <View style={clockStyles.modeSwitcher}>
+        <TouchableOpacity
+          style={[clockStyles.modeButton, mode === 'hour' && clockStyles.modeButtonActive]}
+          onPress={() => setMode('hour')}
+        >
+          <Text style={[clockStyles.modeText, mode === 'hour' && clockStyles.modeTextActive]}>时</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[clockStyles.modeButton, mode === 'minute' && clockStyles.modeButtonActive]}
+          onPress={() => setMode('minute')}
+        >
+          <Text style={[clockStyles.modeText, mode === 'minute' && clockStyles.modeTextActive]}>分</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Clock Face */}
       <View style={clockStyles.clockContainer}>
         <View style={clockStyles.clockFace}>
           {/* Center dot */}
           <View style={clockStyles.centerDot} />
           
-          {/* Hour markers */}
-          {hourMarkers.map((hour) => {
-            const angle = (hour * 30 - 90) * (Math.PI / 180);
-            const radius = 70;
-            const x = Math.cos(angle) * radius;
-            const y = Math.sin(angle) * radius;
-            const isSelected = (hours % 12) === hour;
-            
-            return (
-              <TouchableOpacity
-                key={`hour-${hour}`}
-                style={[
-                  clockStyles.hourMarker,
-                  {
-                    left: 90 + x - 16,
-                    top: 90 + y - 16,
-                  },
-                  isSelected && clockStyles.hourMarkerSelected,
-                ]}
-                onPress={() => handleHourSelect(hour === 0 ? 12 : hour)}
-              >
-                <Text style={[
-                  clockStyles.hourText,
-                  isSelected && clockStyles.hourTextSelected,
-                ]}>
-                  {hour === 0 ? 12 : hour}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+          {mode === 'hour' ? (
+            /* Hour markers */
+            hourMarkers.map((hour) => {
+              const angle = (hour * 30 - 90) * (Math.PI / 180);
+              const radius = 70;
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+              const isSelected = (hours % 12) === hour;
+              
+              return (
+                <TouchableOpacity
+                  key={`hour-${hour}`}
+                  style={[
+                    clockStyles.hourMarker,
+                    {
+                      left: 90 + x - 16,
+                      top: 90 + y - 16,
+                    },
+                    isSelected && clockStyles.hourMarkerSelected,
+                  ]}
+                  onPress={() => handleHourSelect(hour === 0 ? 12 : hour)}
+                >
+                  <Text style={[
+                    clockStyles.hourText,
+                    isSelected && clockStyles.hourTextSelected,
+                  ]}>
+                    {hour === 0 ? 12 : hour}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            /* Minute markers */
+            minuteMarkers.map((minute) => {
+              const angle = (minute * 6 - 90) * (Math.PI / 180);
+              const radius = 70;
+              const x = Math.cos(angle) * radius;
+              const y = Math.sin(angle) * radius;
+              const isSelected = minutes === minute;
+              
+              return (
+                <TouchableOpacity
+                  key={`minute-${minute}`}
+                  style={[
+                    clockStyles.hourMarker,
+                    {
+                      left: 90 + x - 16,
+                      top: 90 + y - 16,
+                    },
+                    isSelected && clockStyles.hourMarkerSelected,
+                  ]}
+                  onPress={() => handleMinuteSelect(minute)}
+                >
+                  <Text style={[
+                    clockStyles.hourText,
+                    isSelected && clockStyles.hourTextSelected,
+                  ]}>
+                    {minute.toString().padStart(2, '0')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
 
           {/* Hour hand */}
           <View
@@ -149,34 +200,25 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
         </View>
       </View>
 
-      {/* Minute Selector */}
-      <View style={clockStyles.minuteContainer}>
-        <Text style={clockStyles.minuteLabel}>分钟</Text>
-        <View>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={clockStyles.minuteScroll}
+      {/* Quick Minute Buttons */}
+      <View style={clockStyles.quickMinuteContainer}>
+        {[0, 15, 30, 45].map((minute) => (
+          <TouchableOpacity
+            key={`quick-${minute}`}
+            style={[
+              clockStyles.quickMinuteButton,
+              minutes === minute && clockStyles.quickMinuteButtonActive,
+            ]}
+            onPress={() => handleMinuteSelect(minute)}
           >
-            {minuteMarkers.map((minute) => (
-              <TouchableOpacity
-                key={`minute-${minute}`}
-                style={[
-                  clockStyles.minuteItem,
-                  minutes === minute && clockStyles.minuteItemSelected,
-                ]}
-                onPress={() => handleMinuteSelect(minute)}
-              >
-                <Text style={[
-                  clockStyles.minuteText,
-                  minutes === minute && clockStyles.minuteTextSelected,
-                ]}>
-                  {minute.toString().padStart(2, '0')}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            <Text style={[
+              clockStyles.quickMinuteText,
+              minutes === minute && clockStyles.quickMinuteTextActive,
+            ]}>
+              {minute.toString().padStart(2, '0')}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
     </View>
   );
@@ -648,6 +690,56 @@ const clockStyles = StyleSheet.create({
     color: '#4A5568',
   },
   minuteTextSelected: {
+    color: '#FFFFFF',
+  },
+  modeSwitcher: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 8,
+  },
+  modeButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  modeButtonActive: {
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
+  },
+  modeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4A5568',
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
+  },
+  quickMinuteContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  quickMinuteButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickMinuteButtonActive: {
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
+  },
+  quickMinuteText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4A5568',
+  },
+  quickMinuteTextActive: {
     color: '#FFFFFF',
   },
 });
