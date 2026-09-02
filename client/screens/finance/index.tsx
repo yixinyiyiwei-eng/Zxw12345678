@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -78,6 +78,7 @@ export default function FinanceScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showExport, setShowExport] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
 
   // 编辑状态
   const [type, setType] = useState<'income' | 'expense'>('expense');
@@ -171,7 +172,12 @@ export default function FinanceScreen() {
       setAmount('');
       setDescription('');
       setEditingId(null);
-      fetchTransactions();
+      await fetchTransactions();
+      // 滚动到列表顶部
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ x: 0, y: 0, animated: true });
+      }, 100);
+      Alert.alert('成功', '记录已保存');
     } catch (error) {
       console.error('Failed to save transaction:', error);
       Alert.alert('错误', '保存失败');
@@ -265,7 +271,7 @@ export default function FinanceScreen() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
+      <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         {/* 日期选择器 */}
         <View style={styles.dateSelector}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
