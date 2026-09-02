@@ -81,6 +81,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="workout"
+        options={{
+          title: '锻炼',
+          tabBarIcon: ({ color }) => (
+            <FontAwesome6 name="dumbbell" size={18} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
