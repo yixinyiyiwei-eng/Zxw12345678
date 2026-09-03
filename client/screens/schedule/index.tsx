@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -238,6 +238,7 @@ export default function ScheduleScreen() {
   const [reminderVisible, setReminderVisible] = useState(false);
   const [reminderItem, setReminderItem] = useState<PlanItem | null>(null);
   const [postponeTimeInput, setPostponeTimeInput] = useState('');
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -458,23 +459,35 @@ export default function ScheduleScreen() {
 
   const playReminderSound = async () => {
     try {
-      // 使用系统默认通知声音
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      }
       const { sound } = await Audio.Sound.createAsync(
-        { uri: 'https://www.soundjay.com/buttons/sounds/button-3.mp3' },
-        { shouldPlay: true }
+        { uri: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3' },
+        { shouldPlay: true, isLooping: true }
       );
-      await sound.setOnPlaybackStatusUpdate((status: any) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-        }
-      });
+      soundRef.current = sound;
     } catch (error) {
       console.error('Failed to play reminder sound:', error);
     }
   };
 
+  const stopReminderSound = async () => {
+    try {
+      if (soundRef.current) {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+    } catch (error) {
+      console.error('Failed to stop reminder sound:', error);
+    }
+  };
+
   const handleReminderPostpone = async (minutes: number) => {
     if (!reminderItem) return;
+    await stopReminderSound();
     await postponeItem(reminderItem, minutes);
     setReminderVisible(false);
     setReminderItem(null);
@@ -809,6 +822,7 @@ export default function ScheduleScreen() {
                   <TouchableOpacity
                     style={[styles.reminderButton, styles.reminderCompleteButton]}
                     onPress={() => {
+                      stopReminderSound();
                       if (reminderItem) handleComplete(reminderItem);
                       setReminderVisible(false);
                       setReminderItem(null);
