@@ -14,8 +14,7 @@ import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 type WorkCategory = 'accommodation' | 'fuel' | 'printing' | 'transport';
 
@@ -93,8 +92,7 @@ export default function FinanceScreen() {
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions`);
-      const data = await response.json();
+      const data = await localStorage.getAll<Transaction>(STORAGE_KEYS.TRANSACTIONS);
       setTransactions(data);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
@@ -156,17 +154,9 @@ export default function FinanceScreen() {
 
     try {
       if (editingId) {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        await localStorage.update(STORAGE_KEYS.TRANSACTIONS, editingId.toString(), payload);
       } else {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        await localStorage.add(STORAGE_KEYS.TRANSACTIONS, payload as any);
       }
       // 清空表单
       setAmount('');
@@ -206,9 +196,7 @@ export default function FinanceScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/${id}`, {
-              method: 'DELETE',
-            });
+            await localStorage.delete(STORAGE_KEYS.TRANSACTIONS, id.toString());
             if (editingId === id) {
               setEditingId(null);
               setAmount('');
