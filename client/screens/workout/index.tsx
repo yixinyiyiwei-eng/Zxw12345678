@@ -12,8 +12,7 @@ import {
 import { Screen } from '@/components/Screen';
 import { useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 type WorkoutPlan = {
   id: number;
@@ -50,10 +49,9 @@ export default function WorkoutScreen() {
 
   const fetchPlans = useCallback(async () => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/workout-plans?date=${selectedDate}`);
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
-      setPlans(data);
+      const allPlans = await localStorage.getAll<WorkoutPlan>(STORAGE_KEYS.WORKOUT);
+      const plans = allPlans.filter((p: any) => p.date === selectedDate);
+      setPlans(plans);
     } catch (error) {
       console.error('Failed to fetch workout plans:', error);
     }
@@ -72,44 +70,37 @@ export default function WorkoutScreen() {
     }
 
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/workout-plans`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: selectedDate,
-          exercise_type: selectedExercise,
-          duration: parseInt(duration),
-          intensity: selectedIntensity,
-          notes,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to create');
-
-      setSelectedExercise('');
+      const allPlans = await localStorage.getAll(STORAGE_KEYS.WORKOUT);
+      const newPlan = {
+        id: Date.now(),
+        date: selectedDate,
+        exercise_type: selectedExercise,
+        duration: parseInt(duration),
+        intensity: selectedIntensity,
+        notes: notes.trim(),
+        is_completed: false,
+      };
+      allPlans.push(newPlan);
+      await localStorage.saveAll(STORAGE_KEYS.WORKOUT, allPlans);
       setDuration('');
       setNotes('');
       fetchPlans();
       Alert.alert('成功', '锻炼计划已添加');
     } catch (error) {
-      console.error('Failed to create workout plan:', error);
+      console.error('Failed to add workout plan:', error);
       Alert.alert('错误', '添加失败');
     }
   };
 
   const handleToggleComplete = async (plan: WorkoutPlan) => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/workout-plans/${plan.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...plan,
-          is_completed: !plan.is_completed,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update');
-      fetchPlans();
+      const allPlans = await localStorage.getAll<WorkoutPlan>(STORAGE_KEYS.WORKOUT);
+      const planIndex = allPlans.findIndex((p: any) => p.id === plan.id);
+      if (planIndex !== -1) {
+        (allPlans[planIndex] as any).is_completed = !(allPlans[planIndex] as any).is_completed;
+        await localStorage.saveAll(STORAGE_KEYS.WORKOUT, allPlans);
+        fetchPlans();
+      }
     } catch (error) {
       console.error('Failed to update workout plan:', error);
     }
@@ -123,10 +114,10 @@ export default function WorkoutScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/workout-plans/${id}`, {
-              method: 'DELETE',
-            });
-            if (!response.ok) throw new Error('Failed to delete');
+            const allPlans = await localStorage.getAll(STORAGE_KEYS.WORKOUT);
+            const filteredPlans = allPlans.filter((p: any) => p.id !== id);
+            await localStorage.saveAll(STORAGE_KEYS.WORKOUT, filteredPlans);
+            fetchPlans();
             fetchPlans();
           } catch (error) {
             console.error('Failed to delete workout plan:', error);
@@ -139,9 +130,10 @@ export default function WorkoutScreen() {
   const getRecentDates = () => {
     const dates = [];
     const today = new Date();
-    for (let i = 0; i < 7; i++) {
+    // 显示过去 3 天和未来 4 天
+    for (let i = -3; i <= 4; i++) {
       const date = new Date(today);
-      date.setDate(today.getDate() - i);
+      date.setDate(today.getDate() + i);
       dates.push({
         date: date.toISOString().split('T')[0],
         day: date.getDate(),

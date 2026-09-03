@@ -16,8 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeSearchParams } from '@/hooks/useSafeRouter';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 type NoteType = 'money' | 'review' | 'english' | 'reading' | 'ai';
 
@@ -90,9 +89,8 @@ export default function NotesScreen() {
 
   const fetchNotes = useCallback(async () => {
     try {
-      const endpoint = API_ENDPOINTS[activeTab];
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}${endpoint}`);
-      const data = await response.json();
+      const key = `notes_${activeTab}` as any;
+      const data = await localStorage.getAll<NoteItem>(key);
       setNotes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch notes:', error);
@@ -189,21 +187,25 @@ export default function NotesScreen() {
         payload = { content: content.trim() };
       }
 
+      const key = `notes_${activeTab}` as any;
+      const allNotes = await localStorage.getAll(key);
+
       if (currentNote) {
         // 更新现有笔记
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}${endpoint}/${currentNote.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+        const noteIndex = allNotes.findIndex((n: any) => n.id === currentNote.id);
+        if (noteIndex !== -1) {
+          allNotes[noteIndex] = { ...(allNotes[noteIndex] as any), ...payload };
+        }
       } else {
         // 创建新笔记
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+        allNotes.push({
+          id: Date.now(),
+          date: selectedDate,
+          ...payload,
         });
       }
+
+      await localStorage.saveAll(key, allNotes);
       await fetchNotes();
       Alert.alert('成功', '保存成功');
     } catch (error) {
@@ -217,12 +219,12 @@ export default function NotesScreen() {
   const config = NOTE_CONFIG[activeTab];
   const tabs: NoteType[] = ['money', 'review', 'english', 'reading', 'ai'];
 
-  // 获取最近 7 天的日期列表
+  // 获取最近 7 天的日期列表（过去 3 天 + 未来 4 天）
   const getRecentDates = () => {
     const dates = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = -3; i <= 4; i++) {
       const date = new Date();
-      date.setDate(date.getDate() - i);
+      date.setDate(date.getDate() + i);
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');

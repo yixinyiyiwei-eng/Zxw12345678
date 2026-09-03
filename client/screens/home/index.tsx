@@ -12,8 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 interface DashboardData {
   date: string;
@@ -48,9 +47,59 @@ export default function HomeScreen() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/dashboard`);
-      const result = await response.json();
-      setData(result);
+      const today = new Date().toISOString().split('T')[0];
+
+      // 从本地存储读取数据
+      const transactions = await localStorage.getAll<any>(STORAGE_KEYS.TRANSACTIONS);
+      const schedule = await localStorage.getAll<any>(STORAGE_KEYS.SCHEDULE);
+      const goals = await localStorage.getAll<any>(STORAGE_KEYS.GOALS);
+      const notesMoney = await localStorage.getAll<any>('notes_money');
+      const notesReview = await localStorage.getAll<any>('notes_review');
+      const notesEnglish = await localStorage.getAll<any>('notes_english');
+      const notesReading = await localStorage.getAll<any>('notes_reading');
+      const notesAi = await localStorage.getAll<any>('notes_ai');
+      const workout = await localStorage.getAll<any>(STORAGE_KEYS.WORKOUT);
+
+      // 计算财务数据
+      const todayTransactions = transactions.filter((t: any) => t.date === today);
+      const totalIncome = todayTransactions
+        .filter((t: any) => t.type === 'income')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+      const totalExpense = todayTransactions
+        .filter((t: any) => t.type === 'expense')
+        .reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0);
+
+      // 获取今日计划
+      const todayPlan = schedule.find((p: any) => p.date === today);
+      const planItems = todayPlan?.items || [];
+
+      // 获取目标进度
+      const goalsProgress = goals.map((g: any) => ({
+        id: g.id,
+        title: g.title,
+        progress: g.sub_goals?.length > 0
+          ? Math.round((g.sub_goals.filter((sg: any) => sg.is_completed).length / g.sub_goals.length) * 100)
+          : 0,
+      }));
+
+      // 获取笔记统计
+      const todayNotes = {
+        english: (notesEnglish || []).filter((n: any) => n.date === today).length,
+        reading: (notesReading || []).filter((n: any) => n.date === today).length,
+        ai_learning: (notesAi || []).filter((n: any) => n.date === today).length,
+      };
+
+      // 检查是否有今日复盘
+      const hasReview = (notesReview || []).some((n: any) => n.date === today);
+
+      setData({
+        date: today,
+        finance: { total_income: totalIncome, total_expense: totalExpense },
+        plan_items: planItems,
+        goals: goalsProgress,
+        has_review: hasReview,
+        notes_summary: todayNotes,
+      });
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
     }

@@ -16,8 +16,7 @@ import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 interface PlanItem {
   id: number;
@@ -238,11 +237,9 @@ export default function ScheduleScreen() {
 
   const fetchPlan = useCallback(async () => {
     try {
-      const response = await fetch(
-        `${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans?date=${selectedDate}`
-      );
-      const data = await response.json();
-      setPlan(data);
+      const allPlans = await localStorage.getAll<DailyPlan>(STORAGE_KEYS.SCHEDULE);
+      const plan = allPlans.find((p: any) => p.date === selectedDate);
+      setPlan(plan || { id: Date.now(), date: selectedDate, items: [] });
     } catch (error) {
       console.error('Failed to fetch plan:', error);
     }
@@ -281,26 +278,35 @@ export default function ScheduleScreen() {
     }
 
     try {
+      const allPlans = await localStorage.getAll(STORAGE_KEYS.SCHEDULE);
+      let plan = allPlans.find((p: any) => p.date === selectedDate);
+
+      if (!plan) {
+        plan = { id: Date.now(), date: selectedDate, items: [] };
+        allPlans.push(plan);
+      }
+
       if (editingItem) {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans/items/${editingItem.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const itemIndex = (plan as any).items.findIndex((item: any) => item.id === editingItem.id);
+        if (itemIndex !== -1) {
+          (plan as any).items[itemIndex] = {
+            ...(plan as any).items[itemIndex],
             title: title.trim(),
             scheduled_time: scheduledTime || null,
-          }),
-        });
+          };
+        }
       } else {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans/items`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            date: selectedDate,
-            title: title.trim(),
-            scheduled_time: scheduledTime || null,
-          }),
+        (plan as any).items.push({
+          id: Date.now(),
+          plan_id: (plan as any).id,
+          title: title.trim(),
+          scheduled_time: scheduledTime || null,
+          status: 'pending',
+          postpone_until: null,
         });
       }
+
+      await localStorage.saveAll(STORAGE_KEYS.SCHEDULE, allPlans);
       setModalVisible(false);
       fetchPlan();
     } catch (error) {
@@ -311,12 +317,16 @@ export default function ScheduleScreen() {
 
   const handleComplete = async (item: PlanItem) => {
     try {
-      await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans/items/${item.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      });
-      fetchPlan();
+      const allPlans = await localStorage.getAll(STORAGE_KEYS.SCHEDULE);
+      const plan = allPlans.find((p: any) => p.date === selectedDate);
+      if (plan) {
+        const itemIndex = (plan as any).items.findIndex((i: any) => i.id === item.id);
+        if (itemIndex !== -1) {
+          (plan as any).items[itemIndex].status = 'completed';
+          await localStorage.saveAll(STORAGE_KEYS.SCHEDULE, allPlans);
+          fetchPlan();
+        }
+      }
     } catch (error) {
       console.error('Failed to complete item:', error);
     }
@@ -335,15 +345,17 @@ export default function ScheduleScreen() {
   const postponeItem = async (item: PlanItem, minutes: number) => {
     const postponeUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString();
     try {
-      await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans/items/${item.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'postponed',
-          postpone_until: postponeUntil,
-        }),
-      });
-      fetchPlan();
+      const allPlans = await localStorage.getAll(STORAGE_KEYS.SCHEDULE);
+      const plan = allPlans.find((p: any) => p.date === selectedDate);
+      if (plan) {
+        const itemIndex = (plan as any).items.findIndex((i: any) => i.id === item.id);
+        if (itemIndex !== -1) {
+          (plan as any).items[itemIndex].status = 'postponed';
+          (plan as any).items[itemIndex].postpone_until = postponeUntil;
+          await localStorage.saveAll(STORAGE_KEYS.SCHEDULE, allPlans);
+          fetchPlan();
+        }
+      }
     } catch (error) {
       console.error('Failed to postpone item:', error);
     }
@@ -357,10 +369,13 @@ export default function ScheduleScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/daily-plans/items/${id}`, {
-              method: 'DELETE',
-            });
-            fetchPlan();
+            const allPlans = await localStorage.getAll(STORAGE_KEYS.SCHEDULE);
+            const plan = allPlans.find((p: any) => p.date === selectedDate);
+            if (plan) {
+              (plan as any).items = (plan as any).items.filter((i: any) => i.id !== id);
+              await localStorage.saveAll(STORAGE_KEYS.SCHEDULE, allPlans);
+              fetchPlan();
+            }
           } catch (error) {
             console.error('Failed to delete:', error);
           }
@@ -891,7 +906,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '90%',
+    maxHeight: '85%',
     flex: 1,
   },
   modalHeader: {

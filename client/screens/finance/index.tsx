@@ -218,12 +218,20 @@ export default function FinanceScreen() {
     const endDate = `${year}-${month}-${lastDay.toString().padStart(2, '0')}`;
 
     try {
-      const response = await fetch(
-        `${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/transactions/export?start=${startDate}&end=${endDate}`
-      );
-      if (!response.ok) throw new Error('Export failed');
-      const csvContent = await response.text();
-      
+      const allTransactions = await localStorage.getAll<Transaction>(STORAGE_KEYS.TRANSACTIONS);
+      const filteredTransactions = allTransactions.filter((t: any) => {
+        if (t.date < startDate || t.date > endDate) return false;
+        if (t.category !== 'work') return false;
+        return true;
+      });
+
+      // 生成 CSV 内容
+      const csvHeader = '日期,类型,类别,子类别,描述,金额,是否开票\n';
+      const csvRows = filteredTransactions.map((t: any) => {
+        return `${t.date},${t.type},${t.category},${t.sub_category || ''},${t.description || ''},${t.amount},${t.is_invoiced ? '是' : '否'}`;
+      }).join('\n');
+      const csvContent = csvHeader + csvRows;
+
       if (Platform.OS === 'web') {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);

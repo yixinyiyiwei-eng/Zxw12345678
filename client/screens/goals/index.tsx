@@ -16,8 +16,7 @@ import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
-
-const EXPO_PUBLIC_BACKEND_BASE_URL = process.env.EXPO_PUBLIC_BACKEND_BASE_URL;
+import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 
 interface SubGoal {
   id: number;
@@ -52,9 +51,8 @@ export default function GoalsScreen() {
 
   const fetchGoals = useCallback(async () => {
     try {
-      const response = await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals`);
-      const data = await response.json();
-      setGoals(data);
+      const data = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+      setGoals(data || []);
     } catch (error) {
       console.error('Failed to fetch goals:', error);
     }
@@ -95,27 +93,29 @@ export default function GoalsScreen() {
     }
 
     try {
+      const allGoals = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+
       if (editingGoal) {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals/${editingGoal.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        const goalIndex = allGoals.findIndex((g: any) => g.id === editingGoal.id);
+        if (goalIndex !== -1) {
+          allGoals[goalIndex] = {
+            ...allGoals[goalIndex],
             title: title.trim(),
             description: description.trim(),
             summary: summary.trim(),
-          }),
-        });
+          };
+        }
       } else {
-        await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: title.trim(),
-            description: description.trim(),
-            summary: summary.trim(),
-          }),
-        });
+        allGoals.push({
+          id: Date.now(),
+          title: title.trim(),
+          description: description.trim(),
+          summary: summary.trim(),
+          sub_goals: [],
+        } as unknown as Goal);
       }
+
+      await localStorage.saveAll(STORAGE_KEYS.GOALS, allGoals);
       setModalVisible(false);
       fetchGoals();
     } catch (error) {
@@ -137,11 +137,18 @@ export default function GoalsScreen() {
     }
 
     try {
-      await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals/${selectedGoalId}/sub-goals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: subGoalTitle.trim() }),
-      });
+      const allGoals = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+      const goal = allGoals.find((g: any) => g.id === selectedGoalId);
+      if (goal) {
+        if (!goal.sub_goals) goal.sub_goals = [];
+        goal.sub_goals.push({
+          id: Date.now(),
+          goal_id: selectedGoalId,
+          title: subGoalTitle.trim(),
+          is_completed: false,
+        });
+        await localStorage.saveAll(STORAGE_KEYS.GOALS, allGoals);
+      }
       setSubGoalModalVisible(false);
       fetchGoals();
     } catch (error) {
@@ -152,12 +159,16 @@ export default function GoalsScreen() {
 
   const toggleSubGoal = async (subGoal: SubGoal) => {
     try {
-      await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals/sub-goals/${subGoal.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_completed: !subGoal.is_completed }),
-      });
-      fetchGoals();
+      const allGoals = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+      const goal = allGoals.find((g: any) => g.id === subGoal.goal_id);
+      if (goal && goal.sub_goals) {
+        const subGoalIndex = goal.sub_goals.findIndex((sg: any) => sg.id === subGoal.id);
+        if (subGoalIndex !== -1) {
+          goal.sub_goals[subGoalIndex].is_completed = !goal.sub_goals[subGoalIndex].is_completed;
+          await localStorage.saveAll(STORAGE_KEYS.GOALS, allGoals);
+          fetchGoals();
+        }
+      }
     } catch (error) {
       console.error('Failed to toggle sub-goal:', error);
     }
@@ -171,9 +182,13 @@ export default function GoalsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals/sub-goals/${id}`, {
-              method: 'DELETE',
-            });
+            const allGoals = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+            for (const goal of allGoals) {
+              if (goal.sub_goals) {
+                goal.sub_goals = goal.sub_goals.filter((sg: any) => sg.id !== id);
+              }
+            }
+            await localStorage.saveAll(STORAGE_KEYS.GOALS, allGoals);
             fetchGoals();
           } catch (error) {
             console.error('Failed to delete:', error);
@@ -191,9 +206,9 @@ export default function GoalsScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await fetch(`${EXPO_PUBLIC_BACKEND_BASE_URL}/api/v1/goals/${id}`, {
-              method: 'DELETE',
-            });
+            const allGoals = await localStorage.getAll<Goal>(STORAGE_KEYS.GOALS);
+            const filteredGoals = allGoals.filter((g: any) => g.id !== id);
+            await localStorage.saveAll(STORAGE_KEYS.GOALS, filteredGoals);
             fetchGoals();
           } catch (error) {
             console.error('Failed to delete:', error);

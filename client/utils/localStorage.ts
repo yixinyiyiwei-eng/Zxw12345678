@@ -79,6 +79,7 @@ export const localStorage = {
 export const STORAGE_KEYS = {
   TRANSACTIONS: 'transactions',
   DAILY_PLANS: 'daily_plans',
+  SCHEDULE: 'schedule',
   PLAN_ITEMS: 'plan_items',
   GOALS: 'goals',
   SUB_GOALS: 'sub_goals',
@@ -86,6 +87,7 @@ export const STORAGE_KEYS = {
   ENGLISH_NOTES: 'english_notes',
   READING_NOTES: 'reading_notes',
   AI_LEARNING_NOTES: 'ai_learning_notes',
+  WORKOUT: 'workout',
   WORKOUT_PLANS: 'workout_plans',
   MONEY_INSIGHTS: 'money_insights'
 };
