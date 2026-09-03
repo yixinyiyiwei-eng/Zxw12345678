@@ -313,78 +313,6 @@ export default function FinanceScreen() {
           </Text>
         </View>
 
-        {/* 当日记录列表 */}
-        {selectedDateTransactions.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>当日记录 ({selectedDateTransactions.length})</Text>
-            {selectedDateTransactions.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                onLongPress={() => handleDelete(item.id)}
-                onPress={() => handleEdit(item)}
-                style={[
-                  styles.transactionCard,
-                  editingId === item.id && styles.transactionCardActive,
-                ]}
-              >
-                <View style={styles.transactionRow}>
-                  <View style={[
-                    styles.typeIcon,
-                    { backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE' }
-                  ]}>
-                    <FontAwesome6
-                      name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
-                      size={14}
-                      color={item.type === 'income' ? '#2D7D46' : '#E53E3E'}
-                    />
-                  </View>
-                  <View style={styles.transactionInfo}>
-                    <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
-                    <View style={styles.tagContainer}>
-                      <Text style={[styles.tag, item.category === 'work' && styles.workTag]}>
-                        {item.category === 'work' ? '工作' : '生活'}
-                      </Text>
-                      {item.category === 'work' && item.work_category && (
-                        <Text style={styles.workCategoryTag}>
-                          {WORK_CATEGORY_LABELS[item.work_category]}
-                        </Text>
-                      )}
-                      {item.is_invoiced && (
-                        <Text style={styles.invoiceTag}>已开票</Text>
-                      )}
-                    </View>
-                  </View>
-                  <Text style={[
-                    styles.transactionAmount,
-                    { color: item.type === 'income' ? '#2D7D46' : '#E53E3E' }
-                  ]}>
-                    {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* 导出选项 */}
-        {showExport && (
-          <View style={styles.exportCard}>
-            <Text style={styles.exportLabel}>导出工作支出清单</Text>
-            <View style={styles.exportRow}>
-              <TextInput
-                style={styles.exportInput}
-                value={exportMonth}
-                onChangeText={setExportMonth}
-                placeholder="YYYY-MM"
-                placeholderTextColor="#A0AEC0"
-              />
-              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-                <Text style={styles.exportBtnText}>导出</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {/* 编辑表单 */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{editingId ? '编辑记录' : '新增记录'}</Text>
@@ -516,6 +444,78 @@ export default function FinanceScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* 当日记录列表 */}
+        {selectedDateTransactions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>当日记录 ({selectedDateTransactions.length})</Text>
+            {selectedDateTransactions.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                onLongPress={() => handleDelete(item.id)}
+                onPress={() => handleEdit(item)}
+                style={[
+                  styles.transactionCard,
+                  editingId === item.id && styles.transactionCardActive,
+                ]}
+              >
+                <View style={styles.transactionRow}>
+                  <View style={[
+                    styles.typeIcon,
+                    { backgroundColor: item.type === 'income' ? '#E8F5E9' : '#FFEBEE' }
+                  ]}>
+                    <FontAwesome6
+                      name={item.type === 'income' ? 'arrow-down' : 'arrow-up'}
+                      size={14}
+                      color={item.type === 'income' ? '#2D7D46' : '#E53E3E'}
+                    />
+                  </View>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionDesc} numberOfLines={1}>{item.description}</Text>
+                    <View style={styles.tagContainer}>
+                      <Text style={[styles.tag, item.category === 'work' && styles.workTag]}>
+                        {item.category === 'work' ? '工作' : '生活'}
+                      </Text>
+                      {item.category === 'work' && item.work_category && (
+                        <Text style={styles.workCategoryTag}>
+                          {WORK_CATEGORY_LABELS[item.work_category]}
+                        </Text>
+                      )}
+                      {item.is_invoiced && (
+                        <Text style={styles.invoiceTag}>已开票</Text>
+                      )}
+                    </View>
+                  </View>
+                  <Text style={[
+                    styles.transactionAmount,
+                    { color: item.type === 'income' ? '#2D7D46' : '#E53E3E' }
+                  ]}>
+                    {item.type === 'income' ? '+' : '-'}{parseFloat(item.amount).toFixed(2)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* 导出选项 */}
+        {showExport && (
+          <View style={styles.exportCard}>
+            <Text style={styles.exportLabel}>导出工作支出清单</Text>
+            <View style={styles.exportRow}>
+              <TextInput
+                style={styles.exportInput}
+                value={exportMonth}
+                onChangeText={setExportMonth}
+                placeholder="YYYY-MM"
+                placeholderTextColor="#A0AEC0"
+              />
+              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
+                <Text style={styles.exportBtnText}>导出</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -657,9 +657,9 @@ const styles = StyleSheet.create({
   },
   transactionCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -672,31 +672,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   transactionInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   transactionDesc: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
     color: '#1A202C',
   },
   tagContainer: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 3,
     gap: 4,
   },
   tag: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#718096',
     backgroundColor: '#F7FAFC',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
   },
@@ -705,23 +705,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
   },
   workCategoryTag: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#2B6CB0',
     backgroundColor: '#EBF8FF',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
   },
   invoiceTag: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#2D7D46',
     backgroundColor: '#E8F5E9',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     paddingVertical: 2,
     borderRadius: 4,
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
   typeToggle: {
