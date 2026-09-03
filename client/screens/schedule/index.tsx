@@ -237,6 +237,7 @@ export default function ScheduleScreen() {
   // 提醒弹窗状态
   const [reminderVisible, setReminderVisible] = useState(false);
   const [reminderItem, setReminderItem] = useState<PlanItem | null>(null);
+  const [postponeTimeInput, setPostponeTimeInput] = useState('');
 
   // Form state
   const [title, setTitle] = useState('');
@@ -775,23 +776,35 @@ export default function ScheduleScreen() {
                 </View>
 
                 <View style={styles.reminderActions}>
+                  <TextInput
+                    style={styles.reminderTimeInput}
+                    placeholder="输入延后时间 (HH:MM)"
+                    placeholderTextColor="#A0AEC0"
+                    value={postponeTimeInput}
+                    onChangeText={setPostponeTimeInput}
+                    keyboardType="numbers-and-punctuation"
+                    maxLength={5}
+                  />
                   <TouchableOpacity
-                    style={styles.reminderButton}
-                    onPress={() => handleReminderPostpone(30)}
+                    style={styles.reminderConfirmButton}
+                    onPress={() => {
+                      if (postponeTimeInput && /^\d{2}:\d{2}$/.test(postponeTimeInput)) {
+                        const [hours, minutes] = postponeTimeInput.split(':').map(Number);
+                        const now = new Date();
+                        const targetTime = new Date();
+                        targetTime.setHours(hours, minutes, 0, 0);
+                        if (targetTime <= now) {
+                          targetTime.setDate(targetTime.getDate() + 1);
+                        }
+                        const delayMinutes = Math.floor((targetTime.getTime() - now.getTime()) / 60000);
+                        if (delayMinutes > 0) {
+                          handleReminderPostpone(delayMinutes);
+                          setPostponeTimeInput('');
+                        }
+                      }
+                    }}
                   >
-                    <Text style={styles.reminderButtonText}>30分钟后</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.reminderButton}
-                    onPress={() => handleReminderPostpone(60)}
-                  >
-                    <Text style={styles.reminderButtonText}>1小时后</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.reminderButton}
-                    onPress={() => handleReminderPostpone(120)}
-                  >
-                    <Text style={styles.reminderButtonText}>2小时后</Text>
+                    <Text style={styles.reminderConfirmText}>确认延后</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.reminderButton, styles.reminderCompleteButton]}
@@ -799,6 +812,7 @@ export default function ScheduleScreen() {
                       if (reminderItem) handleComplete(reminderItem);
                       setReminderVisible(false);
                       setReminderItem(null);
+                      setPostponeTimeInput('');
                     }}
                   >
                     <Text style={[styles.reminderButtonText, styles.reminderCompleteText]}>已完成</Text>
@@ -1352,6 +1366,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2D7D46',
+  },
+  reminderTimeInput: {
+    backgroundColor: '#F7FAFC',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    fontSize: 16,
+    color: '#1A202C',
+    textAlign: 'center',
+  },
+  reminderConfirmButton: {
+    backgroundColor: '#2D7D46',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  reminderConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   reminderCompleteButton: {
     backgroundColor: '#2D7D46',
