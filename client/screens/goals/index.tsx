@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -323,6 +324,7 @@ export default function GoalsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
+          <View style={{ flex: 0.18 }} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{editingGoal ? '编辑目标' : '新增目标'}</Text>
@@ -386,6 +388,7 @@ export default function GoalsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.modalOverlay}
         >
+          <View style={{ flex: 0.18 }} />
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>添加子目标</Text>
@@ -421,6 +424,8 @@ export default function GoalsScreen() {
     </Screen>
   );
 }
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   header: {
@@ -584,9 +589,11 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginHorizontal: 0,
-    height: '80%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 0,
+    flex: 0.82,
+    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
