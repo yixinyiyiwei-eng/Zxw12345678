@@ -11,6 +11,7 @@ import {
   Platform,
   Alert,
   RefreshControl,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Screen } from '@/components/Screen';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -332,14 +333,27 @@ export default function ScheduleScreen() {
     }
   };
 
-  const handlePostpone = async (item: PlanItem) => {
-    Alert.alert('延后办理', '选择延后时间', [
-      { text: '30分钟', onPress: () => postponeItem(item, 30) },
-      { text: '1小时', onPress: () => postponeItem(item, 60) },
-      { text: '2小时', onPress: () => postponeItem(item, 120) },
-      { text: '明天', onPress: () => postponeItem(item, 24 * 60) },
-      { text: '取消', style: 'cancel' },
-    ]);
+  const [postponeItemData, setPostponeItemData] = useState<PlanItem | null>(null);
+  const [postponeModalVisible, setPostponeModalVisible] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
+
+  const handlePostpone = (item: PlanItem) => {
+    setPostponeItemData(item);
+    setCustomMinutes('');
+    setPostponeModalVisible(true);
+  };
+
+  const handleCustomPostpone = async () => {
+    if (!postponeItemData || !customMinutes) return;
+    const minutes = parseInt(customMinutes, 10);
+    if (isNaN(minutes) || minutes <= 0) {
+      Alert.alert('错误', '请输入有效的分钟数');
+      return;
+    }
+    await postponeItem(postponeItemData, minutes);
+    setPostponeModalVisible(false);
+    setPostponeItemData(null);
+    setCustomMinutes('');
   };
 
   const postponeItem = async (item: PlanItem, minutes: number) => {
@@ -579,6 +593,58 @@ export default function ScheduleScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Postpone Modal */}
+      <Modal visible={postponeModalVisible} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setPostponeModalVisible(false)}>
+          <View style={styles.postponeOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.postponeModal}>
+                <View style={styles.postponeHeader}>
+                  <Text style={styles.postponeTitle}>延后办理</Text>
+                  <TouchableOpacity onPress={() => setPostponeModalVisible(false)}>
+                    <FontAwesome6 name="xmark" size={20} color="#4A5568" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.postponeBody}>
+                  <Text style={styles.postponeSubtitle}>选择延后时间</Text>
+
+                  <View style={styles.quickOptions}>
+                    <TouchableOpacity style={styles.quickOption} onPress={() => { setCustomMinutes('30'); handleCustomPostpone(); }}>
+                      <Text style={styles.quickOptionText}>30分钟</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.quickOption} onPress={() => { setCustomMinutes('60'); handleCustomPostpone(); }}>
+                      <Text style={styles.quickOptionText}>1小时</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.quickOption} onPress={() => { setCustomMinutes('120'); handleCustomPostpone(); }}>
+                      <Text style={styles.quickOptionText}>2小时</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.quickOption} onPress={() => { setCustomMinutes(String(24 * 60)); handleCustomPostpone(); }}>
+                      <Text style={styles.quickOptionText}>明天</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.customInput}>
+                    <Text style={styles.customLabel}>自定义时间（分钟）</Text>
+                    <TextInput
+                      style={styles.customTextInput}
+                      value={customMinutes}
+                      onChangeText={setCustomMinutes}
+                      placeholder="输入分钟数..."
+                      placeholderTextColor="#A0AEC0"
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity style={styles.confirmButton} onPress={handleCustomPostpone}>
+                      <Text style={styles.confirmButtonText}>确认</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </Screen>
   );
@@ -971,6 +1037,92 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Postpone Modal Styles
+  postponeOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  postponeModal: {
+    width: '100%',
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  postponeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  postponeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A202C',
+  },
+  postponeBody: {
+    padding: 20,
+  },
+  postponeSubtitle: {
+    fontSize: 14,
+    color: '#718096',
+    marginBottom: 16,
+  },
+  quickOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  quickOption: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  quickOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2D7D46',
+  },
+  customInput: {
+    marginTop: 10,
+  },
+  customLabel: {
+    fontSize: 13,
+    color: '#718096',
+    marginBottom: 8,
+  },
+  customTextInput: {
+    backgroundColor: '#F7FAFC',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: '#1A202C',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 12,
+  },
+  confirmButton: {
+    backgroundColor: '#2D7D46',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#FFFFFF',
