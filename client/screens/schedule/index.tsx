@@ -540,7 +540,7 @@ export default function ScheduleScreen() {
       {/* Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
         >
           <View style={styles.modalContent}>
