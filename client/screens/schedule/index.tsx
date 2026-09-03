@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import * as Notifications from 'expo-notifications';
+import { Audio } from 'expo-av';
 
 interface PlanItem {
   id: number;
@@ -232,6 +234,10 @@ export default function ScheduleScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
 
+  // 提醒弹窗状态
+  const [reminderVisible, setReminderVisible] = useState(false);
+  const [reminderItem, setReminderItem] = useState<PlanItem | null>(null);
+
   // Form state
   const [title, setTitle] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
@@ -397,6 +403,107 @@ export default function ScheduleScreen() {
       },
     ]);
   };
+
+  // 通知相关函数
+  const requestNotificationPermissions = async () => {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== 'granted') {
+      Alert.alert('提示', '需要通知权限才能使用提醒功能');
+      return false;
+    }
+    return true;
+  };
+
+  const scheduleNotification = async (item: PlanItem, date: string) => {
+    if (!item.scheduled_time) return;
+
+    const hasPermission = await requestNotificationPermissions();
+    if (!hasPermission) return;
+
+    try {
+      // 计算通知触发时间
+      const [hours, minutes] = item.scheduled_time.split(':').map(Number);
+      const triggerDate = new Date(date);
+      triggerDate.setHours(hours, minutes, 0, 0);
+
+      // 如果时间已过，不设置通知
+      if (triggerDate.getTime() < Date.now()) return;
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '📋 每日计划提醒',
+          body: item.title,
+          data: { itemId: item.id, itemTitle: item.title, date },
+          sound: 'default',
+        },
+        trigger: triggerDate as any,
+      });
+    } catch (error) {
+      console.error('Failed to schedule notification:', error);
+    }
+  };
+
+  const showReminder = (item: PlanItem) => {
+    setReminderItem(item);
+    setReminderVisible(true);
+    // 播放提醒铃声
+    playReminderSound();
+  };
+
+  const playReminderSound = async () => {
+    try {
+      // 使用系统默认通知声音
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: 'https://www.soundjay.com/buttons/sounds/button-3.mp3' },
+        { shouldPlay: true }
+      );
+      await sound.setOnPlaybackStatusUpdate((status: any) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (error) {
+      console.error('Failed to play reminder sound:', error);
+    }
+  };
+
+  const handleReminderPostpone = async (minutes: number) => {
+    if (!reminderItem) return;
+    await postponeItem(reminderItem, minutes);
+    setReminderVisible(false);
+    setReminderItem(null);
+  };
+
+  // 监听通知
+  useEffect(() => {
+    const subscription = Notifications.addNotificationReceivedListener(notification => {
+      const data = notification.request.content.data;
+      if (data && data.itemId) {
+        const item = plan?.items.find((i: any) => i.id === data.itemId);
+        if (item) {
+          showReminder(item);
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, [plan]);
+
+  // 为当前日期的待办事项设置通知
+  useEffect(() => {
+    if (plan && plan.items) {
+      plan.items.forEach((item: PlanItem) => {
+        if (item.status === 'pending' && item.scheduled_time) {
+          scheduleNotification(item, plan.date);
+        }
+      });
+    }
+  }, [plan]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -640,6 +747,62 @@ export default function ScheduleScreen() {
                       <Text style={styles.confirmButtonText}>确认</Text>
                     </TouchableOpacity>
                   </View>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Reminder Modal */}
+      <Modal visible={reminderVisible} transparent animationType="fade">
+        <TouchableWithoutFeedback>
+          <View style={styles.reminderOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.reminderModal}>
+                <View style={styles.reminderHeader}>
+                  <FontAwesome6 name="bell" size={24} color="#2D7D46" />
+                  <Text style={styles.reminderTitle}>计划提醒</Text>
+                </View>
+
+                <View style={styles.reminderBody}>
+                  <Text style={styles.reminderItemTitle}>{reminderItem?.title}</Text>
+                  {reminderItem?.scheduled_time && (
+                    <Text style={styles.reminderTime}>
+                      计划时间：{reminderItem.scheduled_time.slice(0, 5)}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.reminderActions}>
+                  <TouchableOpacity
+                    style={styles.reminderButton}
+                    onPress={() => handleReminderPostpone(30)}
+                  >
+                    <Text style={styles.reminderButtonText}>30分钟后</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.reminderButton}
+                    onPress={() => handleReminderPostpone(60)}
+                  >
+                    <Text style={styles.reminderButtonText}>1小时后</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.reminderButton}
+                    onPress={() => handleReminderPostpone(120)}
+                  >
+                    <Text style={styles.reminderButtonText}>2小时后</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.reminderButton, styles.reminderCompleteButton]}
+                    onPress={() => {
+                      if (reminderItem) handleComplete(reminderItem);
+                      setReminderVisible(false);
+                      setReminderItem(null);
+                    }}
+                  >
+                    <Text style={[styles.reminderButtonText, styles.reminderCompleteText]}>已完成</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </TouchableWithoutFeedback>
@@ -1125,6 +1288,76 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 15,
     fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Reminder Modal Styles
+  reminderOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  reminderModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 400,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  reminderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  reminderTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A202C',
+    marginLeft: 12,
+  },
+  reminderBody: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  reminderItemTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1A202C',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  reminderTime: {
+    fontSize: 14,
+    color: '#718096',
+  },
+  reminderActions: {
+    gap: 12,
+  },
+  reminderButton: {
+    backgroundColor: '#F7FAFC',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  reminderButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2D7D46',
+  },
+  reminderCompleteButton: {
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
+  },
+  reminderCompleteText: {
     color: '#FFFFFF',
   },
 });
