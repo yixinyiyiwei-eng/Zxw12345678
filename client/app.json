@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -42,7 +42,14 @@
           "photosPermission": "允许访问您的相册",
           "cameraPermission": "允许使用您的相机"
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#059669"
+        }
+      ],
+      "expo-av"
     ],
     "experiments": {
       "typedRoutes": true
