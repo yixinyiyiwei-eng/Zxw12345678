@@ -123,7 +123,7 @@ export default function NotesScreen() {
     }
   }, [selectedDate, activeTab, notes]);
 
-  // 自动保存（输入后 2 秒自动保存）
+  // 自动保存（输入后 2 秒自动保存，静默执行，不弹窗）
   useEffect(() => {
     if (autoSaveTimer) {
       clearTimeout(autoSaveTimer);
@@ -131,7 +131,7 @@ export default function NotesScreen() {
 
     const timer = setTimeout(() => {
       if (content.trim() || observation.trim() || thought.trim() || title.trim() || source.trim()) {
-        handleSave();
+        handleAutoSave();
       }
     }, 2000);
 
@@ -149,6 +149,44 @@ export default function NotesScreen() {
     await fetchNotes();
     setRefreshing(false);
   }, [fetchNotes]);
+
+  // 静默自动保存（不弹窗）
+  const handleAutoSave = async () => {
+    setIsSaving(true);
+    try {
+      const key = `notes_${activeTab}` as any;
+      const allNotes = await localStorage.getAll(key);
+      let payload: Record<string, unknown> = {};
+
+      if (activeTab === 'money') {
+        payload = { observation: observation.trim(), thought: thought.trim() };
+      } else if (activeTab === 'reading') {
+        payload = { content: content.trim(), title: title.trim(), source: source.trim() };
+      } else {
+        payload = { content: content.trim() };
+      }
+
+      if (currentNote) {
+        const noteIndex = allNotes.findIndex((n: any) => n.id === currentNote.id);
+        if (noteIndex !== -1) {
+          allNotes[noteIndex] = { ...(allNotes[noteIndex] as any), ...payload };
+        }
+      } else {
+        allNotes.push({
+          id: Date.now(),
+          date: selectedDate,
+          ...payload,
+        });
+      }
+
+      await localStorage.saveAll(key, allNotes);
+      await fetchNotes();
+    } catch (error) {
+      console.error('Failed to auto-save note:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);

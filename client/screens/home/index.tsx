@@ -33,6 +33,7 @@ interface DashboardData {
   }>;
   has_review: boolean;
   notes_summary: {
+    money: number;
     english: number;
     reading: number;
     ai_learning: number;
@@ -84,6 +85,7 @@ export default function HomeScreen() {
 
       // 获取笔记统计
       const todayNotes = {
+        money: (notesMoney || []).filter((n: any) => n.date === today).length,
         english: (notesEnglish || []).filter((n: any) => n.date === today).length,
         reading: (notesReading || []).filter((n: any) => n.date === today).length,
         ai_learning: (notesAi || []).filter((n: any) => n.date === today).length,
@@ -136,7 +138,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <View>
-            <Text style={styles.greeting}>个人工作台</Text>
+            <Text style={styles.greeting}>生活规划家</Text>
             <Text style={styles.dateText}>{dateStr} {weekDay}</Text>
           </View>
         </View>
@@ -274,7 +276,7 @@ export default function HomeScreen() {
               <View style={[styles.noteIconBox, { backgroundColor: '#F0FFF4' }]}>
                 <FontAwesome6 name="lightbulb" size={20} color="#2D7D46" />
               </View>
-              <Text style={styles.noteCount}>{data?.notes_summary.english || 0}</Text>
+              <Text style={styles.noteCount}>{data?.notes_summary.money || 0}</Text>
               <Text style={styles.noteLabel}>赚钱心得</Text>
             </TouchableOpacity>
             <TouchableOpacity

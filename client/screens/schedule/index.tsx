@@ -438,7 +438,7 @@ export default function ScheduleScreen() {
 
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '📋 每日计划提醒',
+          title: '每日计划提醒',
           body: item.title,
           data: { itemId: item.id, itemTitle: item.title, date },
           sound: 'default',

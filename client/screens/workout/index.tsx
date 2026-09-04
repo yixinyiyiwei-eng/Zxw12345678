@@ -118,7 +118,6 @@ export default function WorkoutScreen() {
             const filteredPlans = allPlans.filter((p: any) => p.id !== id);
             await localStorage.saveAll(STORAGE_KEYS.WORKOUT, filteredPlans);
             fetchPlans();
-            fetchPlans();
           } catch (error) {
             console.error('Failed to delete workout plan:', error);
           }
