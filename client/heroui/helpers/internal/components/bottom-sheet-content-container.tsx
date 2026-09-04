@@ -1,7 +1,8 @@
 import { BottomSheetView, useBottomSheet } from '@gorhom/bottom-sheet';
 import { useEffect, useRef } from 'react';
 import { BackHandler } from 'react-native';
-import { runOnJS, useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { useAnimatedReaction } from 'react-native-reanimated';
 import type { BottomSheetContentContainerProps } from '../types/bottom-sheet';
 
 /**
@@ -36,7 +37,7 @@ export function BottomSheetContentContainer({
     (value) => {
       if (value > 1.5 && !isDragging.get() && !isClosingOnSwipe.get()) {
         isClosingOnSwipe.set(true);
-        runOnJS(closeBottomSheet)();
+        scheduleOnRN(closeBottomSheet);
       }
       if (value === 2) {
         isPanActivated.set(false);
