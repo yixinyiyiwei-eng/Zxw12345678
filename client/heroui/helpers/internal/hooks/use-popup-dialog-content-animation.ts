@@ -13,7 +13,7 @@ import {
   withSpring,
   type EntryOrExitLayoutType,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { runOnJS } from 'react-native-reanimated';
 import { useAnimationSettings } from '../contexts/animation-settings-context';
 import type { PopupDialogContentAnimation } from '../types/animation';
 import {
@@ -182,7 +182,7 @@ export const usePopupDialogContentAnimation = ({
 
           if (progress.get() > 1.1) {
             isGestureReleaseAnimationRunning.set(true);
-            scheduleOnRN(dismissKeyboard);
+            runOnJS(dismissKeyboard)();
             progress.set(
               withSpring(
                 2,
@@ -200,7 +200,7 @@ export const usePopupDialogContentAnimation = ({
             isDragging.set(false);
             setTimeout(() => {
               progress.set(2);
-              scheduleOnRN(onOpenChange, false);
+              runOnJS(onOpenChange)(false);
             }, 300);
             setTimeout(() => {
               progress.set(0);

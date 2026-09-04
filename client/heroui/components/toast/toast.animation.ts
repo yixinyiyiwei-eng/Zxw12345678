@@ -13,7 +13,7 @@ import {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
+import { runOnJS } from 'react-native-reanimated';
 import { useCombinedAnimationDisabledState } from '../../helpers/internal/hooks';
 import {
   getAnimationValueMergedConfig,
@@ -251,7 +251,7 @@ export function useToastRootAnimation(options: UseToastRootAnimationOptions) {
             )
           );
           // Delay hide call to allow decay animation to play
-          scheduleOnRN(delayedHide, id, velocityY);
+          runOnJS(delayedHide)(id, velocityY);
         } else {
           // Animate back to 0
           gestureTranslateY.set(withSpring(0));
@@ -273,7 +273,7 @@ export function useToastRootAnimation(options: UseToastRootAnimationOptions) {
             )
           );
           // Delay hide call to allow decay animation to play
-          scheduleOnRN(delayedHide, id, velocityY);
+          runOnJS(delayedHide)(id, velocityY);
         } else {
           // Animate back to 0
           gestureTranslateY.set(withSpring(0));
