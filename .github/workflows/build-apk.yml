@@ -26,12 +26,10 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@9.0.0
 
-      - name: Install dependencies
-        run: |
-          cd client
-          pnpm install
+      - name: Install dependencies (root workspace)
+        run: pnpm install
 
       - name: Generate native project
         run: |
