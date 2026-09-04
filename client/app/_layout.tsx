@@ -8,25 +8,26 @@ import * as Notifications from 'expo-notifications';
 
 import '../global.css';
 
-// 配置前台通知行为
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 LogBox.ignoreLogs([
   "TurboModuleRegistry.getEnforcing(...): 'RNMapsAirModule' could not be found",
 ]);
 
 export default function RootLayout() {
   useEffect(() => {
-    // 请求通知权限
-    Notifications.requestPermissionsAsync();
+    try {
+      // 配置前台通知行为
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+      // 请求通知权限
+      Notifications.requestPermissionsAsync();
+    } catch (e) {
+      console.warn('通知模块初始化失败:', e);
+    }
   }, []);
 
   return (
