@@ -8,6 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
       - uses: actions/checkout@v4
 
@@ -31,15 +35,22 @@ jobs:
       - name: Install dependencies (root workspace)
         run: pnpm install
 
+      - name: Create local.properties
+        run: |
+          mkdir -p client/android
+          echo "sdk.dir=/usr/local/lib/android/sdk" > client/android/local.properties
+
       - name: Generate native project
         run: |
           cd client
-          npx expo prebuild --platform android
+          npx expo prebuild --platform android --no-install
 
       - name: Build APK
         run: |
           cd client/android
-          ./gradlew assembleDebug
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
