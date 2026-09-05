@@ -46,6 +46,8 @@ jobs:
           npx expo prebuild --platform android --no-install
 
       - name: Build APK
+        env:
+          EXPO_NO_METRO_WORKSPACE_ROOT: "true"
         run: |
           cd client/android
           export ANDROID_HOME=/usr/local/lib/android/sdk
