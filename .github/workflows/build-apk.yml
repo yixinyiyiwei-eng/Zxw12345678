@@ -39,6 +39,8 @@ jobs:
           echo "sdk.dir=/usr/local/lib/android/sdk" > client/android/local.properties
 
       - name: Generate native project
+        env:
+          EXPO_NO_METRO_WORKSPACE_ROOT: "true"
         run: |
           cd client
           npx expo prebuild --platform android --no-install
