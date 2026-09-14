@@ -437,7 +437,6 @@ export default function ScheduleScreen() {
       if (triggerDate.getTime() < Date.now()) return;
 
       // 使用 date 触发器，精确到毫秒
-      const triggerDateMs = triggerDate.getTime();
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '每日计划提醒',
@@ -446,10 +445,10 @@ export default function ScheduleScreen() {
           sound: 'default',
           sticky: false,
           autoDismiss: true,
-        },
+        } as any,
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: triggerDateMs,
+          date: triggerDate,
           channelId: 'alarm',
         },
       });
@@ -529,6 +528,29 @@ export default function ScheduleScreen() {
       responseSubscription.remove();
     };
   }, [plan]);
+
+  // 检测错过的提醒
+  const checkMissedReminders = useCallback(() => {
+    if (!plan || !plan.items || !plan.date) return;
+    const now = Date.now();
+    plan.items.forEach((item: PlanItem) => {
+      if (item.status !== 'pending' || !item.scheduled_time) return;
+      const [hours, minutes] = item.scheduled_time.split(':').map(Number);
+      const itemDate = new Date(plan.date);
+      itemDate.setHours(hours, minutes, 0, 0);
+      const itemTime = itemDate.getTime();
+      if (itemTime <= now && itemTime > now - 30 * 60 * 1000) {
+        showReminder(item);
+      }
+    });
+  }, [plan]);
+
+  // 页面获取焦点时检测错过的提醒
+  useFocusEffect(
+    useCallback(() => {
+      checkMissedReminders();
+    }, [checkMissedReminders])
+  );
 
   // 为当前日期的待办事项设置通知
   useEffect(() => {
