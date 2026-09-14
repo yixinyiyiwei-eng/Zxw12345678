@@ -17,6 +17,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import CalendarModal from '@/components/CalendarModal';
 
 type NoteType = 'money' | 'review' | 'english' | 'reading' | 'ai';
 
@@ -85,6 +86,7 @@ export default function NotesScreen() {
   const [title, setTitle] = useState('');
   const [source, setSource] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
 
   const fetchNotes = useCallback(async () => {
@@ -335,7 +337,15 @@ export default function NotesScreen() {
           })}
           </ScrollView>
         </View>
-        <Text style={styles.dateDisplay}>{formatDateDisplay(selectedDate)}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.dateDisplay}>{formatDateDisplay(selectedDate)}</Text>
+          <TouchableOpacity
+            style={styles.calendarBtn}
+            onPress={() => setShowCalendar(true)}
+          >
+            <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Notebook Editor */}
@@ -443,6 +453,13 @@ export default function NotesScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <CalendarModal
+        visible={showCalendar}
+        selectedDate={selectedDate}
+        onSelect={setSelectedDate}
+        onClose={() => setShowCalendar(false)}
+      />
     </Screen>
   );
 }
@@ -536,6 +553,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#718096',
     textAlign: 'center',
+  },
+  calendarBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editorContainer: {
     flex: 1,

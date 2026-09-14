@@ -13,6 +13,7 @@ import { Screen } from '@/components/Screen';
 import { useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import CalendarModal from '@/components/CalendarModal';
 
 type WorkoutPlan = {
   id: number;
@@ -41,6 +42,7 @@ const intensities = [
 
 export default function WorkoutScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [selectedExercise, setSelectedExercise] = useState('');
   const [duration, setDuration] = useState('');
@@ -159,39 +161,54 @@ export default function WorkoutScreen() {
           </View>
 
           {/* Date Selector */}
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
-            {recentDates.map((item) => (
-              <TouchableOpacity
-                key={item.date}
-                onPress={() => setSelectedDate(item.date)}
-                style={{
-                  flex: 1,
-                  padding: 12,
-                  borderRadius: 12,
-                  backgroundColor: selectedDate === item.date ? '#2D7D46' : '#F3F4F6',
-                  alignItems: 'center',
-                }}
-              >
-                <Text
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20, alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', gap: 8, flex: 1 }}>
+              {recentDates.map((item) => (
+                <TouchableOpacity
+                  key={item.date}
+                  onPress={() => setSelectedDate(item.date)}
                   style={{
-                    fontSize: 18,
-                    fontWeight: 'bold',
-                    color: selectedDate === item.date ? '#FFFFFF' : '#1F2937',
+                    flex: 1,
+                    padding: 12,
+                    borderRadius: 12,
+                    backgroundColor: selectedDate === item.date ? '#2D7D46' : '#F3F4F6',
+                    alignItems: 'center',
                   }}
                 >
-                  {item.day}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: selectedDate === item.date ? '#FFFFFF' : '#6B7280',
-                    marginTop: 2,
-                  }}
-                >
-                  周{item.weekday}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 'bold',
+                      color: selectedDate === item.date ? '#FFFFFF' : '#1F2937',
+                    }}
+                  >
+                    {item.day}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: selectedDate === item.date ? '#FFFFFF' : '#6B7280',
+                      marginTop: 2,
+                    }}
+                  >
+                    周{item.weekday}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowCalendar(true)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: '#F0FDF4',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+            >
+              <FontAwesome6 name="calendar-days" size={18} color="#2D7D46" />
+            </TouchableOpacity>
           </View>
 
           {/* Exercise Type Selector */}
@@ -404,6 +421,13 @@ export default function WorkoutScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CalendarModal
+        visible={showCalendar}
+        selectedDate={selectedDate}
+        onSelect={setSelectedDate}
+        onClose={() => setShowCalendar(false)}
+      />
     </Screen>
   );
 }
