@@ -17,14 +17,12 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeSearchParams } from '@/hooks/useSafeRouter';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
-import { ClockTimePicker } from '@/components/ClockTimePicker';
 
 type NoteType = 'money' | 'review' | 'english' | 'reading' | 'ai';
 
 interface NoteItem {
   id: number;
   date: string;
-  time?: string;
   content: string;
   title?: string;
   source?: string;
@@ -88,8 +86,6 @@ export default function NotesScreen() {
   const [source, setSource] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
-  const [noteTime, setNoteTime] = useState('');
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const fetchNotes = useCallback(async () => {
     try {
@@ -118,14 +114,12 @@ export default function NotesScreen() {
       setThought(noteForDate.thought || '');
       setTitle(noteForDate.title || '');
       setSource(noteForDate.source || '');
-      setNoteTime(noteForDate.time || '');
     } else {
       setContent('');
       setObservation('');
       setThought('');
       setTitle('');
       setSource('');
-      setNoteTime('');
     }
   }, [selectedDate, activeTab, notes]);
 
@@ -170,10 +164,6 @@ export default function NotesScreen() {
         payload = { content: content.trim(), title: title.trim(), source: source.trim() };
       } else {
         payload = { content: content.trim() };
-      }
-
-      if (noteTime) {
-        (payload as any).time = noteTime;
       }
 
       if (currentNote) {
@@ -239,19 +229,18 @@ export default function NotesScreen() {
       const allNotes = await localStorage.getAll(key);
 
       if (currentNote) {
+        // 更新现有笔记
         const noteIndex = allNotes.findIndex((n: any) => n.id === currentNote.id);
         if (noteIndex !== -1) {
           allNotes[noteIndex] = { ...(allNotes[noteIndex] as any), ...payload };
         }
       } else {
         // 创建新笔记
-        const newNote: any = {
+        allNotes.push({
           id: Date.now(),
           date: selectedDate,
           ...payload,
-        };
-        if (noteTime) newNote.time = noteTime;
-        allNotes.push(newNote);
+        });
       }
 
       await localStorage.saveAll(key, allNotes);
@@ -348,22 +337,6 @@ export default function NotesScreen() {
         </View>
         <Text style={styles.dateDisplay}>{formatDateDisplay(selectedDate)}</Text>
       </View>
-
-      {/* Time Picker Toggle */}
-      <TouchableOpacity
-        style={styles.timeToggle}
-        onPress={() => setShowTimePicker(!showTimePicker)}
-      >
-        <FontAwesome6 name="clock" size={14} color="#2D7D46" />
-        <Text style={styles.timeToggleText}>
-          {noteTime ? `时间：${noteTime}` : '添加时间'}
-        </Text>
-      </TouchableOpacity>
-      {showTimePicker && (
-        <View style={styles.timePickerContainer}>
-          <ClockTimePicker value={noteTime} onChange={setNoteTime} />
-        </View>
-      )}
 
       {/* Notebook Editor */}
       <KeyboardAvoidingView
@@ -563,30 +536,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#718096',
     textAlign: 'center',
-  },
-  timeToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginHorizontal: 20,
-    marginBottom: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  timeToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#2D7D46',
-  },
-  timePickerContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    alignItems: 'center',
   },
   editorContainer: {
     flex: 1,
