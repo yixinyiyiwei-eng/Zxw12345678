@@ -131,8 +131,8 @@ export default function WorkoutScreen() {
   const getRecentDates = () => {
     const dates = [];
     const today = new Date();
-    // 显示过去 3 天和未来 4 天
-    for (let i = -3; i <= 4; i++) {
+    // 显示过去 1 天和未来 3 天（共5天，配合日历按钮选任意日期）
+    for (let i = -1; i <= 3; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({
