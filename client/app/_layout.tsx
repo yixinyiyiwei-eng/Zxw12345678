@@ -26,8 +26,8 @@ Notifications.setNotificationHandler({
 });
 
 export default function RootLayout() {
-  const notificationListener = useRef<any>();
-  const responseListener = useRef<any>();
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
   useEffect(() => {
     try {
@@ -38,7 +38,7 @@ export default function RootLayout() {
       if (Platform.OS === 'android') {
         Notifications.setNotificationChannelAsync('default', {
           name: '默认通知',
-          importance: Notifications.AndroidImportance.HIGH,
+          importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#2D7D46',
           sound: 'default',
@@ -50,10 +50,10 @@ export default function RootLayout() {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);

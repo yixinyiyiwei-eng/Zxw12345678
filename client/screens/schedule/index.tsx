@@ -440,13 +440,18 @@ export default function ScheduleScreen() {
       const triggerDateMs = triggerDate.getTime();
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⏰ 每日计划提醒',
+          title: '每日计划提醒',
           body: item.title,
           data: { itemId: item.id, itemTitle: item.title, date },
           sound: 'default',
+          sticky: false,
+          autoDismiss: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: triggerDateMs,
           channelId: 'default',
         },
-        trigger: { type: 'date', date: triggerDateMs, channelId: 'default' },
       });
     } catch (error) {
       console.error('Failed to schedule notification:', error);
