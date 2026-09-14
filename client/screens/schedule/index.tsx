@@ -644,10 +644,10 @@ export default function ScheduleScreen() {
                     onLongPress={() => handleDelete(item.id)}
                   >
                     <Text style={styles.itemTitle}>{item.title}</Text>
-                    {item.scheduled_time && (
+                    {typeof item.scheduled_time === 'string' && item.scheduled_time.trim() && (
                       <View style={styles.timeBadge}>
                         <FontAwesome6 name="clock" size={10} color="#2D7D46" />
-                        <Text style={styles.itemTime}>{item.scheduled_time.slice(0, 5)}</Text>
+                        <Text style={styles.itemTime}>{item.scheduled_time.length >= 5 ? item.scheduled_time.slice(0, 5) : item.scheduled_time}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
