@@ -256,8 +256,20 @@ export default function ScheduleScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchPlan();
-    }, [fetchPlan])
+      const today = new Date().toISOString().split('T')[0];
+      setSelectedDate(today);
+      // 直接获取今天的计划
+      const loadTodayPlan = async () => {
+        try {
+          const allPlans = await localStorage.getAll<DailyPlan>(STORAGE_KEYS.SCHEDULE);
+          const plan = allPlans.find((p: any) => p.date === today);
+          setPlan(plan || { id: Date.now(), date: today, items: [] });
+        } catch (error) {
+          console.error('Failed to fetch plan:', error);
+        }
+      };
+      loadTodayPlan();
+    }, [])
   );
 
   const onRefresh = useCallback(async () => {
@@ -269,7 +281,10 @@ export default function ScheduleScreen() {
   const openAddModal = () => {
     setEditingItem(null);
     setTitle('');
-    setScheduledTime('');
+    // 默认预填当前时间（整点 + 1小时）
+    const now = new Date();
+    const nextHour = (now.getHours() + 1) % 24;
+    setScheduledTime(`${String(nextHour).padStart(2, '0')}:00`);
     setModalVisible(true);
   };
 
