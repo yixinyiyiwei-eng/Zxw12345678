@@ -450,7 +450,7 @@ export default function ScheduleScreen() {
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: triggerDateMs,
-          channelId: 'default',
+          channelId: 'alarm',
         },
       });
     } catch (error) {
@@ -513,7 +513,21 @@ export default function ScheduleScreen() {
       }
     });
 
-    return () => subscription.remove();
+    // 监听通知点击（用户从后台点击悬浮窗进入）
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data;
+      if (data && data.itemId) {
+        const item = plan?.items.find((i: any) => i.id === data.itemId);
+        if (item) {
+          showReminder(item);
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      responseSubscription.remove();
+    };
   }, [plan]);
 
   // 为当前日期的待办事项设置通知

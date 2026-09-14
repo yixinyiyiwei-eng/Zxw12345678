@@ -10,6 +10,10 @@ import * as Notifications from 'expo-notifications';
 
 import '../global.css';
 
+// Android 音频属性（用于闹钟频道）
+const AndroidAudioUsage = { ALARM: 4, NOTIFICATION: 5 };
+const AndroidAudioContentType = { SONIFICATION: 4 };
+
 LogBox.ignoreLogs([
   "TurboModuleRegistry.getEnforcing(...): 'RNMapsAirModule' could not be found",
 ]);
@@ -42,6 +46,19 @@ export default function RootLayout() {
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#2D7D46',
           sound: 'default',
+        });
+        // 创建闹钟提醒频道，用于每日计划提醒
+        Notifications.setNotificationChannelAsync('alarm', {
+          name: '日程闹钟',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 500, 500, 500, 500, 500],
+          lightColor: '#2D7D46',
+          sound: 'default',
+          bypassDnd: true,
+          audioAttributes: {
+            usage: AndroidAudioUsage.ALARM,
+            contentType: AndroidAudioContentType.SONIFICATION,
+          },
         });
       }
     } catch (e) {
