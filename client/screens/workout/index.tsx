@@ -13,10 +13,12 @@ import { Screen } from '@/components/Screen';
 import { useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import { ClockTimePicker } from '@/components/ClockTimePicker';
 
 type WorkoutPlan = {
   id: number;
   date: string;
+  time?: string;
   exercise_type: string;
   duration: number;
   intensity: string;
@@ -46,11 +48,20 @@ export default function WorkoutScreen() {
   const [duration, setDuration] = useState('');
   const [selectedIntensity, setSelectedIntensity] = useState('medium');
   const [notes, setNotes] = useState('');
+  const [planTime, setPlanTime] = useState('');
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const fetchPlans = useCallback(async () => {
     try {
       const allPlans = await localStorage.getAll<WorkoutPlan>(STORAGE_KEYS.WORKOUT);
-      const plans = allPlans.filter((p: any) => p.date === selectedDate);
+      const plans = allPlans
+        .filter((p: any) => p.date === selectedDate)
+        .sort((a: any, b: any) => {
+          if (a.time && b.time) return a.time.localeCompare(b.time);
+          if (a.time) return -1;
+          if (b.time) return 1;
+          return 0;
+        });
       setPlans(plans);
     } catch (error) {
       console.error('Failed to fetch workout plans:', error);
@@ -74,6 +85,7 @@ export default function WorkoutScreen() {
       const newPlan = {
         id: Date.now(),
         date: selectedDate,
+        time: planTime || undefined,
         exercise_type: selectedExercise,
         duration: parseInt(duration),
         intensity: selectedIntensity,
@@ -84,6 +96,7 @@ export default function WorkoutScreen() {
       await localStorage.saveAll(STORAGE_KEYS.WORKOUT, allPlans);
       setDuration('');
       setNotes('');
+      setPlanTime('');
       fetchPlans();
       Alert.alert('成功', '锻炼计划已添加');
     } catch (error) {
@@ -309,6 +322,38 @@ export default function WorkoutScreen() {
             />
           </View>
 
+          {/* Time Picker */}
+          <View style={{ marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 8 }}>
+              时间（可选）
+            </Text>
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(!showTimePicker)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: '#F3F4F6',
+                borderRadius: 12,
+                padding: 16,
+              }}
+            >
+              <FontAwesome6 name="clock" size={16} color="#2D7D46" />
+              <Text style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: planTime ? '#1F2937' : '#9CA3AF',
+              }}>
+                {planTime ? planTime : '点击选择时间'}
+              </Text>
+            </TouchableOpacity>
+            {showTimePicker && (
+              <View style={{ marginTop: 12, alignItems: 'center' }}>
+                <ClockTimePicker value={planTime} onChange={setPlanTime} />
+              </View>
+            )}
+          </View>
+
           {/* Add Button */}
           <TouchableOpacity
             onPress={handleAdd}
@@ -385,7 +430,7 @@ export default function WorkoutScreen() {
                           {plan.exercise_type}
                         </Text>
                         <Text style={{ fontSize: 14, color: '#6B7280', marginTop: 4 }}>
-                          {plan.duration} 分钟 · {plan.intensity === 'low' ? '低强度' : plan.intensity === 'medium' ? '中强度' : '高强度'}
+                          {plan.time && `${plan.time} · `}{plan.duration} 分钟 · {plan.intensity === 'low' ? '低强度' : plan.intensity === 'medium' ? '中强度' : '高强度'}
                         </Text>
                       </View>
                     </View>
