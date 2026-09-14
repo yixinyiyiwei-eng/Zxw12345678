@@ -18,6 +18,7 @@ import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
+import CalendarModal from '@/components/CalendarModal';
 type WorkCategory = 'accommodation' | 'fuel' | 'printing' | 'transport';
 
 interface Transaction {
@@ -90,6 +91,7 @@ export default function FinanceScreen() {
   const [description, setDescription] = useState('');
   const [isInvoiced, setIsInvoiced] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const recentDates = useMemo(() => getRecentDates(), []);
 
@@ -338,33 +340,37 @@ export default function FinanceScreen() {
       </View>
 
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
-        {/* 日期选择器 */}
+        {/* 日期选择器（圆形日期行 + 日历按钮） */}
         <View style={styles.dateSelector}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recentDates.map((date) => (
-              <TouchableOpacity
-                key={date}
-                style={[
-                  styles.dateItem,
-                  selectedDate === date && styles.dateItemActive,
-                ]}
-                onPress={() => {
-                  setSelectedDate(date);
-                  resetForm();
-                }}
-              >
-                <Text style={[
-                  styles.dateText,
-                  selectedDate === date && styles.dateTextActive,
-                ]}>
-                  {formatDate(date)}
-                </Text>
-                {datesWithRecords.has(date) && (
-                  <View style={styles.dateDot} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateContainer}>
+              {recentDates.map((date) => {
+                const isSelected = date === selectedDate;
+                const hasRecord = datesWithRecords.has(date);
+                return (
+                  <TouchableOpacity
+                    key={date}
+                    style={[styles.dateItem, isSelected && styles.dateItemActive]}
+                    onPress={() => {
+                      setSelectedDate(date);
+                      resetForm();
+                    }}
+                  >
+                    <Text style={[styles.dateItemText, isSelected && styles.dateItemTextActive]}>
+                      {new Date(date).getDate()}
+                    </Text>
+                    {hasRecord && <View style={[styles.dateDot, isSelected && styles.dateDotActive]} />}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
+            <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowCalendar(true)}>
+              <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 当日结余 */}
@@ -601,6 +607,16 @@ export default function FinanceScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <CalendarModal
+        visible={showCalendar}
+        selectedDate={selectedDate}
+        onSelect={(date) => {
+          setSelectedDate(date);
+          resetForm();
+        }}
+        onClose={() => setShowCalendar(false)}
+      />
     </Screen>
   );
 }
@@ -635,37 +651,62 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   dateSelector: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
     marginBottom: 16,
   },
+  dateContainer: {
+    gap: 8,
+    marginBottom: 8,
+  },
   dateItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
-    marginRight: 10,
-    alignItems: 'center',
-    minWidth: 80,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
   },
   dateItemActive: {
     backgroundColor: '#2D7D46',
     borderColor: '#2D7D46',
   },
-  dateText: {
-    fontSize: 13,
+  dateItemText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#4A5568',
-    fontWeight: '500',
   },
-  dateTextActive: {
+  dateItemTextActive: {
     color: '#FFFFFF',
   },
   dateDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    position: 'absolute',
+    bottom: 4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: '#2D7D46',
-    marginTop: 4,
+  },
+  dateDotActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  dateDisplay: {
+    fontSize: 13,
+    color: '#718096',
+    textAlign: 'center',
+  },
+  calendarBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
