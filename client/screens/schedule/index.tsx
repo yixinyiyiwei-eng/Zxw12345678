@@ -436,14 +436,17 @@ export default function ScheduleScreen() {
       // 如果时间已过，不设置通知
       if (triggerDate.getTime() < Date.now()) return;
 
+      // 使用 date 触发器，精确到毫秒
+      const triggerDateMs = triggerDate.getTime();
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '每日计划提醒',
+          title: '⏰ 每日计划提醒',
           body: item.title,
           data: { itemId: item.id, itemTitle: item.title, date },
           sound: 'default',
+          channelId: 'default',
         },
-        trigger: triggerDate as any,
+        trigger: { type: 'date', date: triggerDateMs, channelId: 'default' },
       });
     } catch (error) {
       console.error('Failed to schedule notification:', error);
