@@ -104,6 +104,9 @@ export default function FinanceScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      const today = new Date().toISOString().split('T')[0];
+      setSelectedDate(today);
+      setExportMonth(new Date().toISOString().slice(0, 7));
       fetchTransactions();
     }, [fetchTransactions])
   );
