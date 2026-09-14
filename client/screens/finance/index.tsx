@@ -15,7 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
-
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 type WorkCategory = 'accommodation' | 'fuel' | 'printing' | 'transport';
 
 interface Transaction {
@@ -77,6 +79,7 @@ export default function FinanceScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showExport, setShowExport] = useState(false);
+  const [exportType, setExportType] = useState<'work' | 'life' | 'all'>('work');
   const scrollRef = useRef<ScrollView>(null);
 
   // 编辑状态
@@ -221,32 +224,92 @@ export default function FinanceScreen() {
       const allTransactions = await localStorage.getAll<Transaction>(STORAGE_KEYS.TRANSACTIONS);
       const filteredTransactions = allTransactions.filter((t: any) => {
         if (t.date < startDate || t.date > endDate) return false;
-        if (t.category !== 'work') return false;
+        if (exportType === 'work' && t.category !== 'work') return false;
+        if (exportType === 'life' && t.category !== 'life') return false;
         return true;
       });
 
+      if (filteredTransactions.length === 0) {
+        Alert.alert('提示', '该月份没有符合条件的记录');
+        return;
+      }
+
       // 生成 CSV 内容
-      const csvHeader = '日期,类型,类别,子类别,描述,金额,是否开票\n';
+      const typeName = exportType === 'work' ? '工作支出' : exportType === 'life' ? '生活支出' : '全部收支';
+      const csvHeader = '日期,类型,类别,工作分类,描述,金额,是否开票\n';
       const csvRows = filteredTransactions.map((t: any) => {
-        return `${t.date},${t.type},${t.category},${t.sub_category || ''},${t.description || ''},${t.amount},${t.is_invoiced ? '是' : '否'}`;
+        const subCat = t.category === 'work' && t.work_category
+          ? (WORK_CATEGORY_LABELS[t.work_category as WorkCategory] || '')
+          : '';
+        return `${t.date},${t.type === 'expense' ? '支出' : '收入'},${t.category === 'work' ? '工作' : '生活'},${subCat},${t.description || ''},${t.amount},${t.is_invoiced ? '是' : '否'}`;
       }).join('\n');
-      const csvContent = csvHeader + csvRows;
+      const csvContent = '\uFEFF' + csvHeader + csvRows; // BOM for Excel encoding
+      const filename = `expenses-${exportType}-${exportMonth}.csv`;
 
       if (Platform.OS === 'web') {
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `work-expenses-${exportMonth}.csv`;
+        link.download = filename;
         link.click();
         URL.revokeObjectURL(url);
+        Alert.alert('导出成功', `已导出 ${filteredTransactions.length} 条${typeName}记录`);
       } else {
-        Alert.alert('导出成功', `文件已保存，月份：${exportMonth}`);
+        // 使用 expo-file-system 写入文件
+        const fileUri = (FileSystem as any).documentDirectory + filename;
+        await (FileSystem as any).writeAsStringAsync(fileUri, csvContent, {
+          encoding: (FileSystem as any).EncodingType.UTF8,
+        });
+        // 使用 expo-sharing 分享/保存文件
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(fileUri, {
+            mimeType: 'text/csv',
+            dialogTitle: `导出${typeName}清单`,
+            UTI: 'public.comma-separated-values-text',
+          });
+          Alert.alert('导出成功', `已导出 ${filteredTransactions.length} 条${typeName}记录`);
+        } else {
+          // 共享不可用时，将 CSV 内容复制到剪贴板作为备选
+          await Clipboard.setStringAsync(csvContent);
+          Alert.alert(
+            '导出成功',
+            `已导出 ${filteredTransactions.length} 条${typeName}记录\n\n由于系统限制无法直接分享文件，CSV 内容已复制到剪贴板，您可以粘贴到 Excel 或记事本中保存。`,
+            [
+              { text: '好的' },
+              { text: '再次复制', onPress: () => Clipboard.setStringAsync(csvContent) },
+            ]
+          );
+        }
       }
       setShowExport(false);
     } catch (error) {
       console.error('Export failed:', error);
-      Alert.alert('错误', '导出失败');
+      // 出错时也尝试复制 CSV 内容到剪贴板
+      try {
+        const allTransactions = await localStorage.getAll<Transaction>(STORAGE_KEYS.TRANSACTIONS);
+        const filtered = allTransactions.filter((t: any) => {
+          if (t.date < startDate || t.date > endDate) return false;
+          if (exportType === 'work' && t.category !== 'work') return false;
+          if (exportType === 'life' && t.category !== 'life') return false;
+          return true;
+        });
+        if (filtered.length > 0) {
+          const csvBody = filtered.map((t: any) => {
+            const subCat = t.category === 'work' && t.work_category
+              ? (WORK_CATEGORY_LABELS[t.work_category as WorkCategory] || '')
+              : '';
+            return `${t.date},${t.type === 'expense' ? '支出' : '收入'},${t.category === 'work' ? '工作' : '生活'},${subCat},${t.description || ''},${t.amount},${t.is_invoiced ? '是' : '否'}`;
+          }).join('\n');
+          await Clipboard.setStringAsync('\uFEFF日期,类型,类别,工作分类,描述,金额,是否开票\n' + csvBody);
+          Alert.alert('导出完成', `数据已复制到剪贴板，您可以粘贴到 Excel 中保存`);
+        } else {
+          Alert.alert('错误', `导出失败: ${error}`);
+        }
+      } catch {
+        Alert.alert('错误', `导出失败: ${error}`);
+      }
     }
   };
 
@@ -497,7 +560,27 @@ export default function FinanceScreen() {
         {/* 导出选项 */}
         {showExport && (
           <View style={styles.exportCard}>
-            <Text style={styles.exportLabel}>导出工作支出清单</Text>
+            <Text style={styles.exportLabel}>导出费用清单</Text>
+            <View style={styles.exportTypeRow}>
+              <TouchableOpacity
+                style={[styles.exportTypeBtn, exportType === 'work' && styles.exportTypeActive]}
+                onPress={() => setExportType('work')}
+              >
+                <Text style={[styles.exportTypeText, exportType === 'work' && styles.exportTypeTextActive]}>工作</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.exportTypeBtn, exportType === 'life' && styles.exportTypeActive]}
+                onPress={() => setExportType('life')}
+              >
+                <Text style={[styles.exportTypeText, exportType === 'life' && styles.exportTypeTextActive]}>生活</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.exportTypeBtn, exportType === 'all' && styles.exportTypeActive]}
+                onPress={() => setExportType('all')}
+              >
+                <Text style={[styles.exportTypeText, exportType === 'all' && styles.exportTypeTextActive]}>全部</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.exportRow}>
               <TextInput
                 style={styles.exportInput}
@@ -641,6 +724,34 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
+  },
+  exportTypeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  exportTypeBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#F7FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  exportTypeActive: {
+    backgroundColor: '#2D7D46',
+    borderColor: '#2D7D46',
+  },
+  exportTypeText: {
+    fontSize: 13,
+    color: '#4A5568',
+    fontWeight: '500',
+  },
+  exportTypeTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   section: {
     marginBottom: 16,
