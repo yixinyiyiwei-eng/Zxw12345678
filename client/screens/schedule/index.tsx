@@ -49,7 +49,7 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
   const [mode, setMode] = useState<'hour' | 'minute'>('hour');
 
   const hourMarkers = Array.from({ length: 12 }, (_, i) => i);
-  const minuteMarkers = Array.from({ length: 12 }, (_, i) => i * 5);
+  const minuteMarkers = Array.from({ length: 60 }, (_, i) => i);
 
   const handleHourSelect = (hour: number) => {
     const currentIsPM = hours >= 12;
@@ -142,36 +142,31 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
               );
             })
           ) : (
-            /* Minute markers */
-            minuteMarkers.map((minute) => {
-              const angle = (minute * 6 - 90) * (Math.PI / 180);
-              const radius = 70;
-              const x = Math.cos(angle) * radius;
-              const y = Math.sin(angle) * radius;
-              const isSelected = minutes === minute;
-              
-              return (
-                <TouchableOpacity
-                  key={`minute-${minute}`}
-                  style={[
-                    clockStyles.hourMarker,
-                    {
-                      left: 90 + x - 16,
-                      top: 90 + y - 16,
-                    },
-                    isSelected && clockStyles.hourMarkerSelected,
-                  ]}
-                  onPress={() => handleMinuteSelect(minute)}
-                >
-                  <Text style={[
-                    clockStyles.hourText,
-                    isSelected && clockStyles.hourTextSelected,
-                  ]}>
-                    {minute.toString().padStart(2, '0')}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })
+            /* Minute grid - all 0-59 */
+            <ScrollView style={clockStyles.minuteScroll} showsVerticalScrollIndicator={false}>
+              <View style={clockStyles.minuteGrid}>
+                {minuteMarkers.map((minute) => {
+                  const isSelected = minutes === minute;
+                  return (
+                    <TouchableOpacity
+                      key={`minute-${minute}`}
+                      style={[
+                        clockStyles.minuteItem,
+                        isSelected && clockStyles.minuteItemSelected,
+                      ]}
+                      onPress={() => handleMinuteSelect(minute)}
+                    >
+                      <Text style={[
+                        clockStyles.minuteText,
+                        isSelected && clockStyles.minuteTextSelected,
+                      ]}>
+                        {minute.toString().padStart(2, '0')}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </ScrollView>
           )}
 
           {/* Hour hand */}
@@ -963,6 +958,14 @@ const clockStyles = StyleSheet.create({
   minuteScroll: {
     paddingHorizontal: 20,
     gap: 8,
+    flex: 1,
+  },
+  minuteGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
   },
   minuteItem: {
     width: 40,
