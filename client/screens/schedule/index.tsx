@@ -142,31 +142,80 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
               );
             })
           ) : (
-            /* Minute grid - all 0-59 */
-            <ScrollView style={clockStyles.minuteScroll} showsVerticalScrollIndicator={false}>
-              <View style={clockStyles.minuteGrid}>
-                {minuteMarkers.map((minute) => {
-                  const isSelected = minutes === minute;
-                  return (
-                    <TouchableOpacity
-                      key={`minute-${minute}`}
-                      style={[
-                        clockStyles.minuteItem,
-                        isSelected && clockStyles.minuteItemSelected,
-                      ]}
-                      onPress={() => handleMinuteSelect(minute)}
-                    >
-                      <Text style={[
-                        clockStyles.minuteText,
-                        isSelected && clockStyles.minuteTextSelected,
-                      ]}>
-                        {minute.toString().padStart(2, '0')}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </ScrollView>
+            /* Minute face - analog clock with 60 ticks + numbers every 5 min */
+            <View
+              onStartShouldSetResponder={() => true}
+              onResponderRelease={(e) => {
+                const { locationX, locationY } = e.nativeEvent;
+                const dx = locationX - 90;
+                const dy = locationY - 90;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 20 || dist > 85) return;
+                let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+                if (deg < 0) deg += 360;
+                const newMinute = Math.round(deg / 6) % 60;
+                handleMinuteSelect(newMinute);
+              }}
+            >
+              {/* 60 ticks */}
+              {minuteMarkers.map((minute) => {
+                const angle = (minute * 6 - 90) * (Math.PI / 180);
+                const r = 68;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                const isSelected = minutes === minute;
+                const isMajor = minute % 5 === 0;
+                return (
+                  <View
+                    key={`tick-${minute}`}
+                    style={{
+                      position: 'absolute',
+                      left: 90 + x - (isMajor ? 2 : 1),
+                      top: 90 + y - (isMajor ? 2 : 1),
+                      width: isMajor ? 4 : 2,
+                      height: isMajor ? 4 : 2,
+                      borderRadius: isMajor ? 2 : 1,
+                      backgroundColor: isSelected ? '#059669' : (isMajor ? '#374151' : '#9CA3AF'),
+                    }}
+                  />
+                );
+              })}
+              {/* 5-min labels */}
+              {minuteMarkers.filter(m => m % 5 === 0).map((minute) => {
+                const angle = (minute * 6 - 90) * (Math.PI / 180);
+                const r = 68;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
+                const isSelected = minutes === minute;
+                const label = minute === 0 ? '0' : String(minute);
+                return (
+                  <TouchableOpacity
+                    key={`min-label-${minute}`}
+                    style={{
+                      position: 'absolute',
+                      left: 90 + x - 14,
+                      top: 90 + y - 14,
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: isSelected ? '#059669' : 'transparent',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    onPress={() => handleMinuteSelect(minute)}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={{
+                      fontSize: 11,
+                      fontWeight: isSelected ? '700' : '400',
+                      color: isSelected ? '#fff' : '#374151',
+                    }}>
+                      {minute.toString().padStart(2, '0')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
 
           {/* Hour hand */}
@@ -945,49 +994,12 @@ const clockStyles = StyleSheet.create({
     borderRadius: 1,
     marginLeft: -1,
   },
-  minuteContainer: {
-    width: '100%',
-  },
-  minuteLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#718096',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  minuteScroll: {
-    paddingHorizontal: 20,
-    gap: 8,
-    flex: 1,
-  },
-  minuteGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-  minuteItem: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F7FAFC',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  minuteItemSelected: {
-    backgroundColor: '#2D7D46',
-    borderColor: '#2D7D46',
-  },
-  minuteText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#4A5568',
-  },
-  minuteTextSelected: {
-    color: '#FFFFFF',
+  ticksContainer: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    top: 0,
+    left: 0,
   },
   modeSwitcher: {
     flexDirection: 'row',
