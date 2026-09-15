@@ -142,52 +142,55 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
               );
             })
           ) : (
-            /* Minute face - analog clock with 60 ticks + numbers every 5 min */
+            /* Minute face - ticks around the perimeter + labels */
             <View
+              style={clockStyles.minuteFace}
               onStartShouldSetResponder={() => true}
               onResponderRelease={(e) => {
                 const { locationX, locationY } = e.nativeEvent;
                 const dx = locationX - 90;
                 const dy = locationY - 90;
                 const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < 20 || dist > 85) return;
+                if (dist < 15 || dist > 88) return;
                 let deg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
                 if (deg < 0) deg += 360;
                 const newMinute = Math.round(deg / 6) % 60;
                 handleMinuteSelect(newMinute);
               }}
             >
-              {/* 60 ticks */}
+              {/* 60 tick marks around the edge */}
               {minuteMarkers.map((minute) => {
                 const angle = (minute * 6 - 90) * (Math.PI / 180);
-                const r = 68;
-                const x = Math.cos(angle) * r;
-                const y = Math.sin(angle) * r;
                 const isSelected = minutes === minute;
                 const isMajor = minute % 5 === 0;
+                const r = 80;
+                const tickW = isMajor ? 3 : 1.5;
+                const tickH = isMajor ? 14 : 8;
+                const x = Math.cos(angle) * r;
+                const y = Math.sin(angle) * r;
                 return (
                   <View
                     key={`tick-${minute}`}
                     style={{
                       position: 'absolute',
-                      left: 90 + x - (isMajor ? 2 : 1),
-                      top: 90 + y - (isMajor ? 2 : 1),
-                      width: isMajor ? 4 : 2,
-                      height: isMajor ? 4 : 2,
-                      borderRadius: isMajor ? 2 : 1,
+                      left: 90 + x - tickW / 2,
+                      top: 90 + y - tickH / 2,
+                      width: tickW,
+                      height: tickH,
+                      borderRadius: 1,
                       backgroundColor: isSelected ? '#059669' : (isMajor ? '#374151' : '#9CA3AF'),
+                      transform: [{ rotate: `${minute * 6}deg` }],
                     }}
                   />
                 );
               })}
               {/* 5-min labels */}
-              {minuteMarkers.filter(m => m % 5 === 0).map((minute) => {
+              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((minute) => {
                 const angle = (minute * 6 - 90) * (Math.PI / 180);
-                const r = 68;
+                const r = 60;
                 const x = Math.cos(angle) * r;
                 const y = Math.sin(angle) * r;
                 const isSelected = minutes === minute;
-                const label = minute === 0 ? '0' : String(minute);
                 return (
                   <TouchableOpacity
                     key={`min-label-${minute}`}
@@ -207,7 +210,7 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
                   >
                     <Text style={{
                       fontSize: 11,
-                      fontWeight: isSelected ? '700' : '400',
+                      fontWeight: isSelected ? '700' : '500',
                       color: isSelected ? '#fff' : '#374151',
                     }}>
                       {minute.toString().padStart(2, '0')}
@@ -994,7 +997,7 @@ const clockStyles = StyleSheet.create({
     borderRadius: 1,
     marginLeft: -1,
   },
-  ticksContainer: {
+  minuteFace: {
     position: 'absolute',
     width: 180,
     height: 180,
