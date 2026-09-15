@@ -18,6 +18,7 @@ import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
+import CalendarModal from '@/components/CalendarModal';
 type WorkCategory = 'accommodation' | 'fuel' | 'printing' | 'transport';
 
 interface Transaction {
@@ -79,6 +80,7 @@ export default function FinanceScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
   const [showExport, setShowExport] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [exportType, setExportType] = useState<'work' | 'life' | 'all'>('work');
   const scrollRef = useRef<ScrollView>(null);
 
@@ -337,31 +339,36 @@ export default function FinanceScreen() {
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         {/* 日期选择器 */}
         <View style={styles.dateSelector}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recentDates.map((date) => (
-              <TouchableOpacity
-                key={date}
-                style={[
-                  styles.dateItem,
-                  selectedDate === date && styles.dateItemActive,
-                ]}
-                onPress={() => {
-                  setSelectedDate(date);
-                  resetForm();
-                }}
-              >
-                <Text style={[
-                  styles.dateText,
-                  selectedDate === date && styles.dateTextActive,
-                ]}>
-                  {formatDate(date)}
-                </Text>
-                {datesWithRecords.has(date) && (
-                  <View style={styles.dateDot} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateContainer}>
+              {recentDates.map((date) => {
+                const isSelected = date === selectedDate;
+                return (
+                  <TouchableOpacity
+                    key={date}
+                    style={[styles.dateItem, isSelected && styles.dateItemActive]}
+                    onPress={() => {
+                      setSelectedDate(date);
+                      resetForm();
+                    }}
+                  >
+                    <Text style={[styles.dateText, isSelected && styles.dateTextActive]}>
+                      {new Date(date + 'T12:00:00').getDate()}
+                    </Text>
+                    {datesWithRecords.has(date) && (
+                      <View style={[styles.dateDot, isSelected && { backgroundColor: '#FFFFFF' }]} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
+            <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowCalendar(true)}>
+              <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 当日结余 */}
@@ -598,6 +605,17 @@ export default function FinanceScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <CalendarModal
+        visible={showCalendar}
+        selectedDate={selectedDate}
+        onSelect={(date) => {
+          setSelectedDate(date);
+          resetForm();
+          setShowCalendar(false);
+        }}
+        onClose={() => setShowCalendar(false)}
+      />
     </Screen>
   );
 }
@@ -634,14 +652,17 @@ const styles = StyleSheet.create({
   dateSelector: {
     marginBottom: 16,
   },
+  dateContainer: {
+    gap: 8,
+    paddingVertical: 4,
+  },
   dateItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
-    marginRight: 10,
+    justifyContent: 'center',
     alignItems: 'center',
-    minWidth: 80,
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
@@ -650,19 +671,33 @@ const styles = StyleSheet.create({
     borderColor: '#2D7D46',
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 15,
     color: '#4A5568',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   dateTextActive: {
     color: '#FFFFFF',
   },
   dateDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#2D7D46',
-    marginTop: 4,
+    position: 'absolute',
+    bottom: 6,
+  },
+  dateLabel: {
+    fontSize: 14,
+    color: '#4A5568',
+    fontWeight: '500',
+  },
+  calendarBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   summaryCard: {
     backgroundColor: '#FFFFFF',
