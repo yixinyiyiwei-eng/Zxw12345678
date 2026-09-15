@@ -256,20 +256,8 @@ export default function ScheduleScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const today = new Date().toISOString().split('T')[0];
-      setSelectedDate(today);
-      // 直接获取今天的计划
-      const loadTodayPlan = async () => {
-        try {
-          const allPlans = await localStorage.getAll<DailyPlan>(STORAGE_KEYS.SCHEDULE);
-          const plan = allPlans.find((p: any) => p.date === today);
-          setPlan(plan || { id: Date.now(), date: today, items: [] });
-        } catch (error) {
-          console.error('Failed to fetch plan:', error);
-        }
-      };
-      loadTodayPlan();
-    }, [])
+      fetchPlan();
+    }, [fetchPlan])
   );
 
   const onRefresh = useCallback(async () => {
@@ -281,10 +269,7 @@ export default function ScheduleScreen() {
   const openAddModal = () => {
     setEditingItem(null);
     setTitle('');
-    // 默认预填当前时间（整点 + 1小时）
-    const now = new Date();
-    const nextHour = (now.getHours() + 1) % 24;
-    setScheduledTime(`${String(nextHour).padStart(2, '0')}:00`);
+    setScheduledTime('');
     setModalVisible(true);
   };
 
@@ -452,6 +437,7 @@ export default function ScheduleScreen() {
       if (triggerDate.getTime() < Date.now()) return;
 
       // 使用 date 触发器，精确到毫秒
+      const triggerDateMs = triggerDate.getTime();
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '每日计划提醒',
@@ -460,10 +446,10 @@ export default function ScheduleScreen() {
           sound: 'default',
           sticky: false,
           autoDismiss: true,
-        } as any,
+        },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: triggerDate,
+          date: triggerDateMs,
           channelId: 'alarm',
         },
       });
@@ -544,29 +530,6 @@ export default function ScheduleScreen() {
     };
   }, [plan]);
 
-  // 检测错过的提醒
-  const checkMissedReminders = useCallback(() => {
-    if (!plan || !plan.items || !plan.date) return;
-    const now = Date.now();
-    plan.items.forEach((item: PlanItem) => {
-      if (item.status !== 'pending' || !item.scheduled_time) return;
-      const [hours, minutes] = item.scheduled_time.split(':').map(Number);
-      const itemDate = new Date(plan.date);
-      itemDate.setHours(hours, minutes, 0, 0);
-      const itemTime = itemDate.getTime();
-      if (itemTime <= now && itemTime > now - 30 * 60 * 1000) {
-        showReminder(item);
-      }
-    });
-  }, [plan]);
-
-  // 页面获取焦点时检测错过的提醒
-  useFocusEffect(
-    useCallback(() => {
-      checkMissedReminders();
-    }, [checkMissedReminders])
-  );
-
   // 为当前日期的待办事项设置通知
   useEffect(() => {
     if (plan && plan.items) {
@@ -613,7 +576,6 @@ export default function ScheduleScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.dateDisplay} onPress={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
           <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
-              <Text style={{fontSize:10,color:'#999'}}>{selectedDate}</Text>
           {isToday && <Text style={styles.todayBadge}>今天</Text>}
         </TouchableOpacity>
         <TouchableOpacity style={styles.dateArrow} onPress={() => changeDate(1)}>
@@ -645,10 +607,10 @@ export default function ScheduleScreen() {
                     onLongPress={() => handleDelete(item.id)}
                   >
                     <Text style={styles.itemTitle}>{item.title}</Text>
-                    {typeof item.scheduled_time === 'string' && item.scheduled_time.trim() && (
+                    {item.scheduled_time && (
                       <View style={styles.timeBadge}>
                         <FontAwesome6 name="clock" size={10} color="#2D7D46" />
-                        <Text style={styles.itemTime}>{item.scheduled_time.length >= 5 ? item.scheduled_time.slice(0, 5) : item.scheduled_time}</Text>
+                        <Text style={styles.itemTime}>{item.scheduled_time.slice(0, 5)}</Text>
                       </View>
                     )}
                   </TouchableOpacity>

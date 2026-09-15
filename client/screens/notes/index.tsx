@@ -262,7 +262,7 @@ export default function NotesScreen() {
   // 获取最近 7 天的日期列表（过去 3 天 + 未来 4 天）
   const getRecentDates = () => {
     const dates = [];
-    for (let i = -1; i <= 3; i++) {
+    for (let i = -3; i <= 4; i++) {
       const date = new Date();
       date.setDate(date.getDate() + i);
       const year = date.getFullYear();
