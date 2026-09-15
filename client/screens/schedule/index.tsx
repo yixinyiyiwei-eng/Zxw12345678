@@ -613,6 +613,7 @@ export default function ScheduleScreen() {
         </TouchableOpacity>
         <TouchableOpacity style={styles.dateDisplay} onPress={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
           <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
+              <Text style={{fontSize:10,color:'#999'}}>{selectedDate}</Text>
           {isToday && <Text style={styles.todayBadge}>今天</Text>}
         </TouchableOpacity>
         <TouchableOpacity style={styles.dateArrow} onPress={() => changeDate(1)}>

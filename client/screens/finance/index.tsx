@@ -367,6 +367,7 @@ export default function FinanceScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={styles.dateDisplay}>{formatDate(selectedDate)}</Text>
+            <Text style={{fontSize:10,color:'#999'}}>{selectedDate}</Text>
             <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowCalendar(true)}>
               <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
             </TouchableOpacity>
