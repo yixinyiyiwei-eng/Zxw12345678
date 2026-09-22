@@ -14,6 +14,7 @@ import { useFocusEffect } from 'expo-router';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
 import CalendarModal from '@/components/CalendarModal';
+import { getLocalTodayString, toLocalDateString } from '@/utils';
 
 type WorkoutPlan = {
   id: number;
@@ -41,7 +42,7 @@ const intensities = [
 ];
 
 export default function WorkoutScreen() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalTodayString());
   const [showCalendar, setShowCalendar] = useState(false);
   const [plans, setPlans] = useState<WorkoutPlan[]>([]);
   const [selectedExercise, setSelectedExercise] = useState('');
@@ -136,7 +137,7 @@ export default function WorkoutScreen() {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       dates.push({
-        date: date.toISOString().split('T')[0],
+        date: toLocalDateString(date),
         day: date.getDate(),
         weekday: ['日', '一', '二', '三', '四', '五', '六'][date.getDay()],
         isToday: i === 0,

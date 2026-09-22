@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import { getLocalTodayString, toLocalDateString } from '@/utils';
 import * as Notifications from 'expo-notifications';
 import { Audio } from 'expo-av';
 
@@ -276,7 +277,7 @@ function ClockTimePicker({ value, onChange }: { value: string; onChange: (time: 
 export default function ScheduleScreen() {
   const insets = useSafeAreaInsets();
   const [plan, setPlan] = useState<DailyPlan | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalTodayString());
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
@@ -599,10 +600,10 @@ export default function ScheduleScreen() {
   const changeDate = (days: number) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
-    setSelectedDate(newDate.toISOString().split('T')[0]);
+    setSelectedDate(toLocalDateString(newDate));
   };
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === getLocalTodayString();
   const pendingItems = plan?.items.filter(i => i.status === 'pending') || [];
   const postponedItems = plan?.items.filter(i => i.status === 'postponed') || [];
   const completedItems = plan?.items.filter(i => i.status === 'completed') || [];
@@ -621,7 +622,7 @@ export default function ScheduleScreen() {
         <TouchableOpacity style={styles.dateArrow} onPress={() => changeDate(-1)}>
           <FontAwesome6 name="chevron-left" size={14} color="#2D7D46" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.dateDisplay} onPress={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
+        <TouchableOpacity style={styles.dateDisplay} onPress={() => setSelectedDate(getLocalTodayString())}>
           <Text style={styles.dateText}>{formatDate(selectedDate)}</Text>
           {isToday && <Text style={styles.todayBadge}>今天</Text>}
         </TouchableOpacity>

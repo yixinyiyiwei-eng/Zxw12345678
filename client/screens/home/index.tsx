@@ -13,6 +13,7 @@ import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useSafeRouter } from '@/hooks/useSafeRouter';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import { getLocalTodayString } from '@/utils';
 
 interface DashboardData {
   date: string;
@@ -48,7 +49,7 @@ export default function HomeScreen() {
 
   const fetchDashboard = useCallback(async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalTodayString();
 
       // 从本地存储读取数据
       const transactions = await localStorage.getAll<any>(STORAGE_KEYS.TRANSACTIONS);

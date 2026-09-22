@@ -8,6 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
+import { getLocalTodayString } from '@/utils';
 
 interface CalendarModalProps {
   visible: boolean;
@@ -54,7 +55,7 @@ export default function CalendarModal({
     return new Date(viewYear, viewMonth - 1, 1).getDay();
   }, [viewYear, viewMonth]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalTodayString();
 
   const goToPrevMonth = () => {
     if (viewMonth === 1) {

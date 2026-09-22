@@ -6,6 +6,29 @@ dayjs.extend(utc);
 const API_BASE = (process.env.EXPO_PUBLIC_API_BASE ?? '').replace(/\/$/, '');
 
 /**
+ * 获取本地时区的今天日期字符串 (YYYY-MM-DD)
+ * 注意：不能使用 new Date().toISOString()，它返回 UTC 时间，
+ * 在东八区等时区凌晨 0-8 点时会误判为前一天
+ */
+export function getLocalTodayString(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * 将任意 Date 转换为本地时区的日期字符串 (YYYY-MM-DD)
+ */
+export function toLocalDateString(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * 创建跨平台兼容的文件对象，用于 FormData.append()
  * - Web 端返回 File 对象
  * - 移动端返回 { uri, type, name } 对象（RN fetch 会自动处理）

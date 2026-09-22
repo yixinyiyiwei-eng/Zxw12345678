@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { localStorage, STORAGE_KEYS } from '@/utils/localStorage';
+import { getLocalTodayString, toLocalDateString } from '@/utils';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
@@ -46,26 +47,27 @@ const WORK_CATEGORY_ICONS: Record<WorkCategory, keyof typeof FontAwesome6.glyphM
   transport: 'car',
 };
 
-// 获取最近 7 天日期
+// 获取最近 7 天日期 (本地时区)
 const getRecentDates = () => {
   const dates = [];
   const today = new Date();
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
-    dates.push(date.toISOString().split('T')[0]);
+    dates.push(toLocalDateString(date));
   }
   return dates;
 };
 
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
+  const today = getLocalTodayString();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = toLocalDateString(yesterdayDate);
   
-  if (dateStr === today.toISOString().split('T')[0]) return '今天';
-  if (dateStr === yesterday.toISOString().split('T')[0]) return '昨天';
+  if (dateStr === today) return '今天';
+  if (dateStr === yesterday) return '昨天';
   
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -77,8 +79,8 @@ export default function FinanceScreen() {
   const insets = useSafeAreaInsets();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [exportMonth, setExportMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedDate, setSelectedDate] = useState(getLocalTodayString());
+  const [exportMonth, setExportMonth] = useState(getLocalTodayString().slice(0, 7));
   const [showExport, setShowExport] = useState(false);
   const [showCalendar, setShowCalendar] = useState(false);
   const [exportType, setExportType] = useState<'work' | 'life' | 'all'>('work');
