@@ -129,24 +129,21 @@ export default function WorkoutScreen() {
     ]);
   };
 
-  const getRecentDates = () => {
-    const dates = [];
-    const today = new Date();
-    // 显示过去 3 天和未来 4 天
-    for (let i = -3; i <= 4; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
-      dates.push({
-        date: toLocalDateString(date),
-        day: date.getDate(),
-        weekday: ['日', '一', '二', '三', '四', '五', '六'][date.getDay()],
-        isToday: i === 0,
-      });
-    }
-    return dates;
+  const changeDate = (days: number) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + days);
+    setSelectedDate(toLocalDateString(d));
   };
 
-  const recentDates = getRecentDates();
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const weekDays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    return { text: `${month}月${day}日 ${weekDays[date.getDay()]}` };
+  };
+
+  const isToday = selectedDate === getLocalTodayString();
 
   return (
     <Screen>
@@ -162,53 +159,37 @@ export default function WorkoutScreen() {
           </View>
 
           {/* Date Selector */}
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', gap: 8, flex: 1 }}>
-              {recentDates.map((item) => (
-                <TouchableOpacity
-                  key={item.date}
-                  onPress={() => setSelectedDate(item.date)}
-                  style={{
-                    flex: 1,
-                    padding: 12,
-                    borderRadius: 12,
-                    backgroundColor: selectedDate === item.date ? '#2D7D46' : '#F3F4F6',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: 'bold',
-                      color: selectedDate === item.date ? '#FFFFFF' : '#1F2937',
-                    }}
-                  >
-                    {item.day}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: selectedDate === item.date ? '#FFFFFF' : '#6B7280',
-                      marginTop: 2,
-                    }}
-                  >
-                    周{item.weekday}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+            <TouchableOpacity
+              onPress={() => changeDate(-1)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <FontAwesome6 name="chevron-left" size={14} color="#2D7D46" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setSelectedDate(getLocalTodayString())}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}
+            >
+              <Text style={{ fontSize: 17, fontWeight: '600', color: '#1F2937' }}>
+                {formatDate(selectedDate).text}
+              </Text>
+              {isToday && (
+                <Text style={{ fontSize: 11, color: '#2D7D46', backgroundColor: '#E8F5E9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8 }}>
+                  今天
+                </Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => changeDate(1)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <FontAwesome6 name="chevron-right" size={14} color="#2D7D46" />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setShowCalendar(true)}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: '#F0FDF4',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginLeft: 6 }}
             >
-              <FontAwesome6 name="calendar-days" size={18} color="#2D7D46" />
+              <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
             </TouchableOpacity>
           </View>
 

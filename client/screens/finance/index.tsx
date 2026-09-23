@@ -47,18 +47,6 @@ const WORK_CATEGORY_ICONS: Record<WorkCategory, keyof typeof FontAwesome6.glyphM
   transport: 'car',
 };
 
-// 获取最近 7 天日期 (本地时区)
-const getRecentDates = () => {
-  const dates = [];
-  const today = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    dates.push(toLocalDateString(date));
-  }
-  return dates;
-};
-
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr);
   const today = getLocalTodayString();
@@ -95,8 +83,6 @@ export default function FinanceScreen() {
   const [isInvoiced, setIsInvoiced] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const recentDates = useMemo(() => getRecentDates(), []);
-
   const fetchTransactions = useCallback(async () => {
     try {
       const data = await localStorage.getAll<Transaction>(STORAGE_KEYS.TRANSACTIONS);
@@ -132,10 +118,6 @@ export default function FinanceScreen() {
   }, [selectedDateTransactions]);
 
   // 有记录的日期（用于显示绿点）
-  const datesWithRecords = useMemo(() => {
-    return new Set(transactions.map(t => t.date));
-  }, [transactions]);
-
   const handleSave = async () => {
     if (!amount || parseFloat(amount) <= 0) {
       Alert.alert('提示', '请输入有效金额');
@@ -327,6 +309,15 @@ export default function FinanceScreen() {
     setIsInvoiced(false);
   };
 
+  const changeDate = (days: number) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + days);
+    setSelectedDate(toLocalDateString(d));
+    resetForm();
+  };
+
+  const isToday = selectedDate === getLocalTodayString();
+
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -341,36 +332,25 @@ export default function FinanceScreen() {
       <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={styles.scrollContent}>
         {/* 日期选择器 */}
         <View style={styles.dateSelector}>
-          <View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateContainer}>
-              {recentDates.map((date) => {
-                const isSelected = date === selectedDate;
-                return (
-                  <TouchableOpacity
-                    key={date}
-                    style={[styles.dateItem, isSelected && styles.dateItemActive]}
-                    onPress={() => {
-                      setSelectedDate(date);
-                      resetForm();
-                    }}
-                  >
-                    <Text style={[styles.dateText, isSelected && styles.dateTextActive]}>
-                      {new Date(date + 'T12:00:00').getDate()}
-                    </Text>
-                    {datesWithRecords.has(date) && (
-                      <View style={[styles.dateDot, isSelected && { backgroundColor: '#FFFFFF' }]} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity style={styles.dateArrow} onPress={() => changeDate(-1)}>
+            <FontAwesome6 name="chevron-left" size={14} color="#2D7D46" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dateDisplayArea}
+            onPress={() => {
+              setSelectedDate(getLocalTodayString());
+              resetForm();
+            }}
+          >
             <Text style={styles.dateLabel}>{formatDate(selectedDate)}</Text>
-            <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowCalendar(true)}>
-              <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
-            </TouchableOpacity>
-          </View>
+            {isToday && <Text style={styles.todayBadge}>今天</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dateArrow} onPress={() => changeDate(1)}>
+            <FontAwesome6 name="chevron-right" size={14} color="#2D7D46" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.calendarBtn} onPress={() => setShowCalendar(true)}>
+            <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
+          </TouchableOpacity>
         </View>
 
         {/* 当日结余 */}
@@ -652,46 +632,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
   },
-  dateContainer: {
-    gap: 8,
-    paddingVertical: 4,
-  },
-  dateItem: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+  dateArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
-  dateItemActive: {
-    backgroundColor: '#2D7D46',
-    borderColor: '#2D7D46',
+  dateDisplayArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
   },
-  dateText: {
-    fontSize: 15,
-    color: '#4A5568',
-    fontWeight: '600',
-  },
-  dateTextActive: {
-    color: '#FFFFFF',
-  },
-  dateDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#2D7D46',
-    position: 'absolute',
-    bottom: 6,
+  todayBadge: {
+    fontSize: 11,
+    color: '#2D7D46',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   dateLabel: {
-    fontSize: 14,
-    color: '#4A5568',
-    fontWeight: '500',
+    fontSize: 16,
+    color: '#1A202C',
+    fontWeight: '600',
   },
   calendarBtn: {
     width: 34,

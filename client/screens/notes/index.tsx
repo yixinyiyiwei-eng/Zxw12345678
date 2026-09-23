@@ -260,20 +260,16 @@ export default function NotesScreen() {
   const tabs: NoteType[] = ['money', 'review', 'english', 'reading', 'ai'];
 
   // 获取最近 7 天的日期列表（过去 3 天 + 未来 4 天）
-  const getRecentDates = () => {
-    const dates = [];
-    for (let i = -3; i <= 4; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      dates.push(`${year}-${month}-${day}`);
-    }
-    return dates;
+  const changeDate = (days: number) => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + days);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
   };
 
-  const recentDates = getRecentDates();
+  const isToday = selectedDate === getTodayString();
 
   return (
     <Screen safeAreaEdges={['left', 'right', 'bottom']} backgroundColor="#F5FAF5">
@@ -313,39 +309,31 @@ export default function NotesScreen() {
 
       {/* Date Selector */}
       <View style={styles.dateSelector}>
-        <View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dateContainer}
-          >
-          {recentDates.map((date) => {
-            const isSelected = date === selectedDate;
-            const hasNote = notes.some(n => n.date === date);
-            return (
-              <TouchableOpacity
-                key={date}
-                style={[styles.dateItem, isSelected && styles.dateItemSelected]}
-                onPress={() => setSelectedDate(date)}
-              >
-                <Text style={[styles.dateItemText, isSelected && styles.dateItemTextSelected]}>
-                  {new Date(date).getDate()}
-                </Text>
-                {hasNote && <View style={styles.dateDot} />}
-              </TouchableOpacity>
-            );
-          })}
-          </ScrollView>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Text style={styles.dateDisplay}>{formatDateDisplay(selectedDate)}</Text>
-          <TouchableOpacity
-            style={styles.calendarBtn}
-            onPress={() => setShowCalendar(true)}
-          >
-            <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.dateArrow}
+          onPress={() => changeDate(-1)}
+        >
+          <FontAwesome6 name="chevron-left" size={14} color="#2D7D46" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dateDisplayArea}
+          onPress={() => setSelectedDate(getTodayString())}
+        >
+          <Text style={styles.dateDisplayText}>{formatDateDisplay(selectedDate)}</Text>
+          {isToday && <Text style={styles.todayBadge}>今天</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.dateArrow}
+          onPress={() => changeDate(1)}
+        >
+          <FontAwesome6 name="chevron-right" size={14} color="#2D7D46" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.calendarBtn}
+          onPress={() => setShowCalendar(true)}
+        >
+          <FontAwesome6 name="calendar-days" size={16} color="#2D7D46" />
+        </TouchableOpacity>
       </View>
 
       {/* Notebook Editor */}
@@ -509,45 +497,40 @@ const styles = StyleSheet.create({
     color: '#2D7D46',
   },
   dateSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  dateContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  dateItem: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  dateArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
-  dateItemSelected: {
-    backgroundColor: '#2D7D46',
-    borderColor: '#2D7D46',
+  dateDisplayArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
   },
-  dateItemText: {
-    fontSize: 14,
+  dateDisplayText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#4A5568',
+    color: '#1A202C',
   },
-  dateItemTextSelected: {
-    color: '#FFFFFF',
-  },
-  dateDot: {
-    position: 'absolute',
-    bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#2D7D46',
+  todayBadge: {
+    fontSize: 11,
+    color: '#2D7D46',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   dateDisplay: {
     fontSize: 13,
